@@ -34,7 +34,7 @@ data class AvatarConfig(
             }
             val topClean = when {
                 avatar.outfit.lowercase().contains("hoodie") -> "hoodie"
-                avatar.outfit.lowercase().contains("shirt") || avatar.outfit.lowercase().contains("tshirt") -> "t_shirt"
+                avatar.outfit.lowercase().contains("shirt") || avatar.outfit.lowercase().contains("tshirt") -> "tshirt"
                 avatar.outfit.lowercase().contains("jacket") -> "jacket"
                 avatar.outfit.lowercase().contains("long") -> "long_sleeve"
                 avatar.outfit.lowercase().contains("sweater") -> "sweater"

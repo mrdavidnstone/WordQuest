@@ -59,15 +59,29 @@ class HangmanViewModel @Inject constructor(
     }
 
     fun guessLetter(letter: Char) {
-        val char = letter.lowercaseChar()
         if (uiState.value.showFeedback || uiState.value.isFinished) return
-        if (_hangmanState.value.guessedLetters.contains(char)) return
 
-        val word = uiState.value.currentWord?.text?.lowercase() ?: return
-        val isCorrect = word.contains(char)
+        val word = uiState.value.currentWord?.text ?: return
+        val hasCapitals = word.any { it.isUpperCase() }
+
+        val isAlreadyGuessed = if (hasCapitals) {
+            _hangmanState.value.guessedLetters.contains(letter)
+        } else {
+            _hangmanState.value.guessedLetters.contains(letter.lowercaseChar()) ||
+            _hangmanState.value.guessedLetters.contains(letter.uppercaseChar())
+        }
+
+        if (isAlreadyGuessed) return
+
+        val isCorrect = if (hasCapitals) {
+            word.contains(letter)
+        } else {
+            word.contains(letter) || word.contains(letter.lowercaseChar()) || word.contains(letter.uppercaseChar())
+        }
 
         _hangmanState.update { state ->
-            val newGuessed = state.guessedLetters + char
+            val addedLetters = if (!hasCapitals && letter.isLetter()) setOf(letter, letter.lowercaseChar(), letter.uppercaseChar()) else setOf(letter)
+            val newGuessed = state.guessedLetters + addedLetters
             val newWrong = if (isCorrect) state.wrongGuesses else state.wrongGuesses + 1
             val newCombo = if (isCorrect) state.combo + 1 else 0
             val newMood = calculateMood(newWrong, state.maxWrong)
@@ -99,19 +113,33 @@ class HangmanViewModel @Inject constructor(
     private fun updateMaskedWord() {
         val word = uiState.value.currentWord?.text ?: return
         val guessed = _hangmanState.value.guessedLetters
+        val hasCapitals = word.any { it.isUpperCase() }
+
         val masked = word.map { char ->
-            if (char.lowercaseChar() in guessed || !char.isLetter()) char else '_'
+            val isMatch = if (hasCapitals) {
+                char in guessed
+            } else {
+                char in guessed || char.lowercaseChar() in guessed || char.uppercaseChar() in guessed
+            }
+            if (isMatch || char == ' ') char else '_'
         }.joinToString("")
-        
+
         _hangmanState.update { it.copy(maskedWord = masked) }
     }
 
     private fun checkGameStatus() {
         val state = _hangmanState.value
-        val word = uiState.value.currentWord?.text?.lowercase() ?: return
-        
-        val allGuessed = word.all { it.lowercaseChar() in state.guessedLetters || !it.isLetter() }
-        
+        val word = uiState.value.currentWord?.text ?: return
+        val hasCapitals = word.any { it.isUpperCase() }
+
+        val allGuessed = word.all { char ->
+            if (hasCapitals) {
+                char in state.guessedLetters || char == ' '
+            } else {
+                char in state.guessedLetters || char.lowercaseChar() in state.guessedLetters || char.uppercaseChar() in state.guessedLetters || char == ' '
+            }
+        }
+
         if (allGuessed) {
             submitAnswer(true)
         } else if (state.wrongGuesses >= state.maxWrong) {

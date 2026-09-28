@@ -22,6 +22,11 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.spellinggames.app.util.MusicManager
 import com.spellinggames.app.ui.screens.games.*
 import com.spellinggames.app.ui.screens.home.HomeScreen
 import com.spellinggames.app.ui.screens.lists.ListsScreen
@@ -40,11 +45,58 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector)
 fun AppNavHost() {
     val navController = rememberNavController()
     val items = listOf(Screen.Home, Screen.Games, Screen.Progress, Screen.Lists)
+    val context = LocalContext.current
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
+    val mainAreaRoutes = remember {
+        setOf(
+            Screen.Home.route,
+            Screen.Games.route,
+            Screen.Progress.route,
+            Screen.Lists.route,
+            "parent"
+        )
+    }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == "avatar_builder") {
+            MusicManager.playMusic(context, "music/hero_build.wav")
+        } else if (currentRoute in mainAreaRoutes) {
+            MusicManager.playMusic(context, "music/main_theme.ogg")
+        } else if (currentRoute == "game/hangman") {
+            MusicManager.playMusic(context, "music/lab_meltdown.ogg")
+        } else if (currentRoute?.startsWith("game/") == true) {
+            MusicManager.pauseMusic()
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> MusicManager.pauseMusic()
+                Lifecycle.Event.ON_RESUME -> {
+                    if (currentRoute == "avatar_builder") {
+                        MusicManager.playMusic(context, "music/hero_build.wav")
+                    } else if (currentRoute in mainAreaRoutes) {
+                        MusicManager.playMusic(context, "music/main_theme.ogg")
+                    } else if (currentRoute == "game/hangman") {
+                        MusicManager.playMusic(context, "music/lab_meltdown.ogg")
+                    }
+                }
+                Lifecycle.Event.ON_DESTROY -> MusicManager.stopMusic()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Scaffold(
         bottomBar = {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
             // Hide bottom bar on game screens and parent
             val showBottomBar = currentRoute in items.map { it.route }
 

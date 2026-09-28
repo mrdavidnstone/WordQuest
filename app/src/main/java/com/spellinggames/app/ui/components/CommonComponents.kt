@@ -559,70 +559,104 @@ fun ReadyOverlay(
     onSwitchList: (Long) -> Unit,
     onStart: () -> Unit,
     onBack: () -> Unit,
+    customHeader: (@Composable ColumnScope.() -> Unit)? = null,
     extraContent: @Composable ColumnScope.() -> Unit = {}
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        Box(modifier = Modifier.size(110.dp)) {
-            AvatarDisplay(
-                avatar = uiState.avatar,
-                modifier = Modifier.fillMaxSize(),
-                sway = true,
-                isJumping = false
-            )
+        // Top Back Button to return to game selection screen
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+                .align(Alignment.TopStart),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back to Games",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(emoji, fontSize = 48.sp)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            title.uppercase(),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            description,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
-        Spacer(Modifier.height(24.dp))
 
-        ActiveListBadge(
-            listName = uiState.listName,
-            allLists = uiState.allLists,
-            onListSelected = onSwitchList
-        )
+        // Center Content
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+                .padding(top = 52.dp, bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            if (customHeader != null) {
+                customHeader()
+            } else {
+                Surface(
+                    modifier = Modifier.size(90.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(emoji, fontSize = 48.sp)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    title.uppercase(),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center
+                )
+            }
 
-        Spacer(Modifier.height(24.dp))
-        
-        extraContent()
+            Spacer(Modifier.height(10.dp))
 
-        Spacer(Modifier.height(32.dp))
-        
-        if (!uiState.hasWords) {
             Text(
-                "This list has no words. Add some words or pick another list.",
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center
+                description,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
-            Spacer(Modifier.height(16.dp))
-            OutlinedButton(onClick = onBack) { Text("Go Back") }
-        } else {
-            Button(
-                onClick = onStart,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text("PLAY GAME", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+
+            Spacer(Modifier.height(14.dp))
+
+            ActiveListBadge(
+                listName = uiState.listName,
+                allLists = uiState.allLists,
+                onListSelected = onSwitchList
+            )
+
+            Spacer(Modifier.height(14.dp))
+            
+            extraContent()
+
+            Spacer(Modifier.height(18.dp))
+            
+            if (!uiState.hasWords) {
+                Text(
+                    "This list has no words. Add some words or pick another list.",
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = onBack) { Text("Go Back") }
+            } else {
+                Button(
+                    onClick = onStart,
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("PLAY GAME", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
             }
         }
     }

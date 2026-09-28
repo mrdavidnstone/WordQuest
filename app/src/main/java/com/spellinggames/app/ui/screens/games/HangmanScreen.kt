@@ -47,6 +47,8 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 // 10 Lab Chaos Animations (No repeats in the same round)
+import com.spellinggames.app.util.MusicManager
+
 enum class LabChaosEffect(val title: String) {
     BEAKER_OVERFLOW("Beaker Overflow"),
     CONSOLE_SPARKS("Console Sparks"),
@@ -72,6 +74,10 @@ fun HangmanScreen(
 
     val bgBitmap = remember(context) { loadAssetImageBitmap(context, "lab_meltdown_bg.png") }
     val titleBitmap = remember(context) { loadAssetImageBitmap(context, "lab_meltdown_title.png") }
+
+    LaunchedEffect(Unit) {
+        MusicManager.playMusic(context, "music/lab_meltdown.ogg")
+    }
 
     // Track active Lab Chaos Effect for wrong guesses
     var activeEffect by remember { mutableStateOf<LabChaosEffect?>(null) }
@@ -111,15 +117,121 @@ fun HangmanScreen(
     }
 
     if (!uiState.isReady) {
-        ReadyOverlay(
-            title = "Lab Meltdown",
-            emoji = "🧪",
-            description = "Prevent the laboratory meltdown by spelling words correctly! Guess letters to keep the lab stable.",
-            uiState = uiState,
-            onSwitchList = { viewModel.switchList(it) },
-            onStart = { viewModel.startGame() },
-            onBack = onBack
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF030712))
+        ) {
+            // 1. Full-screen Lab Scene Background Image
+            if (bgBitmap != null) {
+                Image(
+                    bitmap = bgBitmap,
+                    contentDescription = "Lab Scene Background",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            // 2. Full-Size Lab Meltdown Title Logo Overlay (Full width)
+            if (titleBitmap != null) {
+                Image(
+                    bitmap = titleBitmap,
+                    contentDescription = "Lab Meltdown Title Overlay",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter),
+                    contentScale = ContentScale.FillWidth
+                )
+            }
+
+            // 3. Foreground UI Layer (Top Back Button + Information & Lesson Card)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top Bar with Back Button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to Games",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(100.dp))
+
+                // Information & Lesson Selection Card
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFF0F172A).copy(alpha = 0.92f),
+                    border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.6f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Prevent the laboratory meltdown by spelling words correctly! Guess letters to keep the lab stable.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = Color.White.copy(alpha = 0.9f),
+                            fontSize = 15.sp,
+                            lineHeight = 21.sp
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+
+                        ActiveListBadge(
+                            listName = uiState.listName,
+                            allLists = uiState.allLists,
+                            onListSelected = { viewModel.switchList(it) }
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        if (!uiState.hasWords) {
+                            Text(
+                                "This list has no words. Add some words or pick another list.",
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedButton(onClick = onBack) { Text("Go Back") }
+                        } else {
+                            Button(
+                                onClick = { viewModel.startGame() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFA855F7)
+                                )
+                            ) {
+                                Text("PLAY GAME", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return
     }
 
@@ -143,11 +255,21 @@ fun HangmanScreen(
             Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0C1020)))
         }
 
+        // TITLE LOGO OVERLAY (lab_meltdown_title.png) - exact size & position aligned with background
+        if (titleBitmap != null) {
+            Image(
+                bitmap = titleBitmap,
+                contentDescription = "Lab Meltdown Title Overlay",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
         // 2. ACTIVE LAB CHAOS ANIMATION OVERLAYS (Sparks, Steam, Flashes, Slime)
         LabChaosOverlay(effect = activeEffect, wrongCount = hangmanState.wrongGuesses)
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // 3. TOP BAR WITH TITLE LOGO & BACK BUTTON
+            // 3. TOP BAR WITH BACK BUTTON
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -159,24 +281,18 @@ fun HangmanScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                 }
 
-                // TITLE LOGO LAYER (lab_meltdown_title.png)
-                Box(
-                    modifier = Modifier.height(65.dp).weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (titleBitmap != null) {
-                        Image(
-                            bitmap = titleBitmap,
-                            contentDescription = "Lab Meltdown Title",
-                            modifier = Modifier.fillMaxHeight(),
-                            contentScale = ContentScale.Fit
-                        )
-                    } else {
-                        Text("LAB MELTDOWN", color = Color(0xFFA855F7), fontWeight = FontWeight.Black, fontSize = 22.sp)
-                    }
+                if (titleBitmap == null) {
+                    Text("LAB MELTDOWN", color = Color(0xFFA855F7), fontWeight = FontWeight.Black, fontSize = 22.sp)
+                } else {
+                    Spacer(Modifier.height(48.dp))
                 }
 
                 Spacer(Modifier.width(48.dp))
+            }
+
+            // Space under title bar to position mistakes bar cleanly underneath title logo
+            if (titleBitmap != null) {
+                Spacer(Modifier.height(100.dp))
             }
 
             // 4. MISTAKES & STABILITY STATUS BAR (Matching Mockup)
@@ -321,33 +437,74 @@ fun HangmanScreen(
                 border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.6f))
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    val rows = listOf(
-                        "qwertyuiop".toList(),
-                        "asdfghjkl".toList(),
-                        "zxcvbnm".toList()
-                    )
-                    rows.forEach { row ->
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            row.forEach { letter ->
-                                val isGuessed = hangmanState.guessedLetters.contains(letter)
-                                val wordText = uiState.currentWord?.text?.lowercase() ?: ""
-                                val isCorrect = isGuessed && wordText.contains(letter)
+                    val row1 = "qwertyuiop".toList()
+                    val row2 = "asdfghjkl".toList()
+                    val row3 = "zxcvbnm".toList()
 
-                                LabKeyTile(
-                                    letter = letter,
-                                    isGuessed = isGuessed,
-                                    isCorrect = isCorrect,
-                                    onClick = { viewModel.guessLetter(letter) },
-                                    disabled = uiState.showFeedback || uiState.isFinished
-                                )
-                            }
+                    // Row 1 (10 keys - Q to P)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                    ) {
+                        row1.forEach { letter ->
+                            val isGuessed = hangmanState.guessedLetters.contains(letter)
+                            val wordText = uiState.currentWord?.text?.lowercase() ?: ""
+                            val isCorrect = isGuessed && wordText.contains(letter)
+
+                            LabKeyTile(
+                                letter = letter,
+                                isGuessed = isGuessed,
+                                isCorrect = isCorrect,
+                                onClick = { viewModel.guessLetter(letter) },
+                                disabled = uiState.showFeedback || uiState.isFinished,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    // Row 2 (9 keys - A to L)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)
+                    ) {
+                        row2.forEach { letter ->
+                            val isGuessed = hangmanState.guessedLetters.contains(letter)
+                            val wordText = uiState.currentWord?.text?.lowercase() ?: ""
+                            val isCorrect = isGuessed && wordText.contains(letter)
+
+                            LabKeyTile(
+                                letter = letter,
+                                isGuessed = isGuessed,
+                                isCorrect = isCorrect,
+                                onClick = { viewModel.guessLetter(letter) },
+                                disabled = uiState.showFeedback || uiState.isFinished,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    // Row 3 (7 keys - Z to M)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 50.dp)
+                    ) {
+                        row3.forEach { letter ->
+                            val isGuessed = hangmanState.guessedLetters.contains(letter)
+                            val wordText = uiState.currentWord?.text?.lowercase() ?: ""
+                            val isCorrect = isGuessed && wordText.contains(letter)
+
+                            LabKeyTile(
+                                letter = letter,
+                                isGuessed = isGuessed,
+                                isCorrect = isCorrect,
+                                onClick = { viewModel.guessLetter(letter) },
+                                disabled = uiState.showFeedback || uiState.isFinished,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
@@ -415,7 +572,8 @@ private fun LabKeyTile(
     isGuessed: Boolean,
     isCorrect: Boolean,
     onClick: () -> Unit,
-    disabled: Boolean
+    disabled: Boolean,
+    modifier: Modifier = Modifier
 ) {
     val scale = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
@@ -427,8 +585,8 @@ private fun LabKeyTile(
     }
 
     Surface(
-        modifier = Modifier
-            .size(width = 32.dp, height = 40.dp)
+        modifier = modifier
+            .height(42.dp)
             .scale(scale.value),
         shape = RoundedCornerShape(8.dp),
         color = bgColor,
@@ -445,9 +603,10 @@ private fun LabKeyTile(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = letter.uppercase(),
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isGuessed && !isCorrect) Color.Gray else Color.White
+                color = if (isGuessed && !isCorrect) Color.Gray else Color.White,
+                maxLines = 1
             )
         }
     }

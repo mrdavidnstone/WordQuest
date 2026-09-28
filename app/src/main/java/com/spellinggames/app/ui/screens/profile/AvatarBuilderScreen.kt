@@ -39,6 +39,7 @@ import com.spellinggames.app.ui.components.avatar.SpriteRepository
 import com.spellinggames.app.ui.screens.profile.character.CharacterRenderer
 import com.spellinggames.app.ui.screens.profile.character.CharacterState
 import com.spellinggames.app.ui.screens.profile.character.CharacterViewModel
+import com.spellinggames.app.util.MusicManager
 
 enum class CustomizerCategory(val title: String, val emoji: String) {
     BODY("Body", "👤"),
@@ -55,9 +56,14 @@ fun AvatarBuilderScreen(
     onBack: () -> Unit,
     viewModel: CharacterViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val characterState by viewModel.characterState.collectAsState()
     val layerVisibility by viewModel.layerVisibility.collectAsState()
     var selectedCategory by remember { mutableStateOf(CustomizerCategory.BODY) }
+
+    LaunchedEffect(Unit) {
+        MusicManager.playMusic(context, "music/hero_build.wav")
+    }
 
     Scaffold(
         containerColor = Color(0xFF031024),
@@ -220,9 +226,9 @@ private fun StationaryColorBar(
                 ColorSwatchRow(colors = topColors, selectedId = characterState.topColor) { color ->
                     val cleanStyle = when {
                         characterState.top.contains("hoodie") -> "hoodie"
-                        characterState.top.contains("shirt") -> "t_shirt"
+                        characterState.top.contains("shirt") -> "tshirt"
                         characterState.top.contains("jacket") -> "jacket"
-                        characterState.top.contains("long") -> "long_sleeve"
+                        characterState.top.contains("long") -> "longsleeve"
                         characterState.top.contains("sweater") -> "sweater"
                         else -> characterState.top
                     }
@@ -357,7 +363,8 @@ private fun ThreeColumnSpriteGrid(
                 )
             }
             Mockup3ColumnGrid(items = options, selectedId = characterState.top) { option ->
-                val topClean = option.id.removeSuffix(".png")
+                val rawClean = option.id.removeSuffix(".png")
+                val topClean = if (rawClean.contains("shirt", ignoreCase = true)) "tshirt" else rawClean
                 onUpdate { it.copy(top = topClean) }
             }
         }

@@ -86,8 +86,12 @@ fun AvatarSpriteRenderer(
             val topPath = if (!overrideTopPath.isNullOrBlank()) {
                 overrideTopPath
             } else {
-                val topFile = if (character.top.endsWith(".png")) character.top else "${character.top}.png"
-                "sprites/top/${character.topColor}/$topFile"
+                val cleanTopName = when {
+                    character.top.contains("shirt", ignoreCase = true) -> "tshirt"
+                    character.top.endsWith(".png") -> character.top.removeSuffix(".png")
+                    else -> character.top
+                }
+                "sprites/top/${character.topColor}/$cleanTopName.png"
             }
             val topBitmap = SpriteRepository.loadSpriteBitmap(context, topPath, 3, 3)
             Image(
