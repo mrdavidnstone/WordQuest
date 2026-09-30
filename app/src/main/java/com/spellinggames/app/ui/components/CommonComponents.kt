@@ -675,11 +675,18 @@ fun GameCard(
     val context = LocalContext.current
     val iconBitmap = remember(context, iconAsset) {
         if (!iconAsset.isNullOrBlank()) {
-            try {
-                context.assets.open(iconAsset).use { stream ->
-                    BitmapFactory.decodeStream(stream)?.asImageBitmap()
-                }
-            } catch (_: Exception) { null }
+            val pathsToTry = listOf(
+                iconAsset,
+                "games/lab_meltdown/$iconAsset"
+            )
+            for (path in pathsToTry) {
+                try {
+                    context.assets.open(path).use { stream ->
+                        BitmapFactory.decodeStream(stream)?.asImageBitmap()?.let { return@remember it }
+                    }
+                } catch (_: Exception) {}
+            }
+            null
         } else null
     }
 

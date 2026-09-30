@@ -132,7 +132,7 @@ class WhichCorrectViewModel @Inject constructor(
 
     fun select(option: String) {
         timerJob?.cancel()
-        val correct = option.equals(uiState.value.currentWord?.text, ignoreCase = true)
+        val correct = isSpellingCorrect(option)
         submitAnswer(correct)
     }
 

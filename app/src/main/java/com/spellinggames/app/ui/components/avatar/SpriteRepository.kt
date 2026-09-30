@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import java.io.InputStream
 
@@ -22,30 +23,130 @@ object SpriteRepository {
         }
     }
 
+    private val croppedCache = object : LruCache<String, ImageBitmap>(16 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: ImageBitmap): Int {
+            return value.width * value.height * 4
+        }
+    }
+
+    /**
+     * Crops transparent borders around an item graphic so it maximizes space
+     * and centers vertically & horizontally inside grid item selection boxes.
+     */
+    fun loadCroppedItemBitmap(context: Context, assetPath: String, fallbackRow: Int = 0, fallbackCol: Int = 0): ImageBitmap {
+        croppedCache.get(assetPath)?.let { return it }
+
+        val source = loadSpriteBitmap(context, assetPath, fallbackRow, fallbackCol)
+        try {
+            val bitmap = source.asAndroidBitmap()
+            val width = bitmap.width
+            val height = bitmap.height
+
+            var minX = width
+            var minY = height
+            var maxX = -1
+            var maxY = -1
+
+            val pixels = IntArray(width * height)
+            bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    val alpha = (pixels[y * width + x] shr 24) and 0xFF
+                    if (alpha > 15) { // Non-transparent pixel threshold
+                        if (x < minX) minX = x
+                        if (x > maxX) maxX = x
+                        if (y < minY) minY = y
+                        if (y > maxY) maxY = y
+                    }
+                }
+            }
+
+            if (maxX >= minX && maxY >= minY) {
+                val cropWidth = (maxX - minX + 1).coerceAtLeast(1)
+                val cropHeight = (maxY - minY + 1).coerceAtLeast(1)
+                val cropped = Bitmap.createBitmap(bitmap, minX, minY, cropWidth, cropHeight)
+                val result = cropped.asImageBitmap()
+                croppedCache.put(assetPath, result)
+                return result
+            }
+        } catch (_: Exception) {}
+
+        croppedCache.put(assetPath, source)
+        return source
+    }
+
     /**
      * Automatically scans an asset directory for PNG files.
-     * Source of truth = Asset File System.
+     * Supports gender-specific subdirectories and special hat directories (sprites/hats/needs_hair_overrides).
+     * Filters out hidden special hair directories (sprites/hair/hide_special_hair) from main selection.
      */
-    fun scanDirectory(context: Context, relativeDir: String): List<SpriteOption> {
+    fun scanDirectory(context: Context, relativeDir: String, genderFolder: String? = null): List<SpriteOption> {
         val options = mutableListOf<SpriteOption>()
-        try {
-            val fileList = context.assets.list(relativeDir) ?: emptyArray()
-            fileList.filter { it.endsWith(".png", ignoreCase = true) }.forEach { fileName ->
-                val cleanName = fileName.removeSuffix(".png")
-                    .replace("_", " ")
-                    .split(" ")
-                    .joinToString(" ") { word -> word.replaceFirstChar { char -> char.uppercase() } }
+        val g = genderFolder?.lowercase()
 
-                options.add(
-                    SpriteOption(
-                        id = fileName,
-                        displayName = cleanName,
-                        fullAssetPath = "$relativeDir/$fileName"
-                    )
-                )
+        // Build list of target directories to scan in order of preference
+        val targetDirs = mutableListOf<String>()
+        if (relativeDir == "sprites/hats") {
+            if (!g.isNullOrBlank()) {
+                targetDirs.add("sprites/hats/$g")
             }
-        } catch (_: Exception) {
-            // Handle empty or uncreated asset directories gracefully
+            targetDirs.add("sprites/hats")
+
+            // Dynamically discover all hat subdirectories (e.g. needs_hair_overrides)
+            try {
+                val subFolders = context.assets.list("sprites/hats") ?: emptyArray()
+                subFolders.filter { !it.contains(".") }.forEach { subFolder ->
+                    if (!g.isNullOrBlank()) {
+                        targetDirs.add("sprites/hats/$subFolder/$g")
+                    }
+                    targetDirs.add("sprites/hats/$subFolder")
+                }
+            } catch (_: Exception) {}
+        } else if (relativeDir == "sprites/hair") {
+            targetDirs.add("sprites/hair/both")
+            if (!g.isNullOrBlank()) {
+                targetDirs.add("sprites/hair/$g")
+                targetDirs.add("sprites/hair/${g}s") // e.g. boys, girls
+            }
+            targetDirs.add("sprites/hair")
+        } else if (!g.isNullOrBlank()) {
+            targetDirs.add("$relativeDir/$g")
+            targetDirs.add(relativeDir)
+        } else {
+            targetDirs.add(relativeDir)
+        }
+
+        val scannedPaths = mutableSetOf<String>()
+
+        for (dir in targetDirs) {
+            try {
+                val fileList = context.assets.list(dir) ?: emptyArray()
+                fileList.filter { file ->
+                    file.endsWith(".png", ignoreCase = true) && !file.contains("hide_special_hair", ignoreCase = true)
+                }.forEach { fileName ->
+                    val isSpecialHatDir = dir.contains("needs_hair_overrides") || dir.contains("need_hair_overrides") || dir.contains("needs_special_hair") || dir.contains("show_special_hair")
+                    val optionKey = if (isSpecialHatDir) "needs_hair_overrides/$fileName" else fileName
+                    if (!scannedPaths.contains(fileName) && !scannedPaths.contains(optionKey)) {
+                        scannedPaths.add(fileName)
+                        scannedPaths.add(optionKey)
+                        val cleanName = fileName.removeSuffix(".png")
+                            .replace("_", " ")
+                            .split(" ")
+                            .joinToString(" ") { word -> word.replaceFirstChar { char -> char.uppercase() } }
+
+                        options.add(
+                            SpriteOption(
+                                id = optionKey,
+                                displayName = cleanName,
+                                fullAssetPath = "$dir/$fileName"
+                            )
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // Handle empty or uncreated asset directories gracefully
+            }
         }
         return options
     }

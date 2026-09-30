@@ -65,7 +65,7 @@ data class AvatarConfig(
             }
 
             return AvatarConfig(
-                gender = "boy",
+                gender = if (avatar.gender.contains("Girl", ignoreCase = true)) "girl" else "boy",
                 skinTone = if (avatar.skinColor.isBlank()) "body_01" else avatar.skinColor,
                 skinColorHex = avatar.skinColor,
                 faceShape = "round",

@@ -1,0 +1,54 @@
+{
+ "game_canvas": [
+  851,
+  1849
+ ],
+ "frame_size": [
+  496,
+  528
+ ],
+ "draw_at_xy": [
+  -98,
+  428
+ ],
+ "draw_order": [
+  "lab_meltdown_bg.png (your plain background, untouched)",
+  "arm frames",
+  "sparks frames (optional)"
+ ],
+ "sequences": {
+  "L1_unstable": {
+   "frames": 24,
+   "fps": 10,
+   "loop": true,
+   "arm_pattern": "L1_unstable/arm_XX.png",
+   "sparks_pattern": "L1_unstable_sparks/spark_XX.png"
+  },
+  "L2_struggling": {
+   "frames": 24,
+   "fps": 12,
+   "loop": true,
+   "arm_pattern": "L2_struggling/arm_XX.png",
+   "sparks_pattern": "L2_struggling_sparks/spark_XX.png"
+  },
+  "L3_meltdown": {
+   "frames": 24,
+   "fps": 12,
+   "loop": true,
+   "arm_pattern": "L3_meltdown/arm_XX.png",
+   "sparks_pattern": "L3_meltdown_sparks/spark_XX.png"
+  },
+  "settle_to_normal": {
+   "frames": 16,
+   "fps": 12,
+   "loop": false,
+   "arm_pattern": "settle_to_normal/arm_XX.png"
+  },
+  "stable_idle": {
+   "frames": 48,
+   "fps": 12,
+   "loop": true,
+   "arm_pattern": "stable_idle/arm_XX.png"
+  }
+ }
+}

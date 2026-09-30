@@ -24,7 +24,9 @@ class ScrambledWordViewModel @Inject constructor(
 
     fun prepareTiles() {
         val word = uiState.value.currentWord?.text ?: return
-        _tiles.value = word.toList().shuffled()
+        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
+        val charList = if (requireCaps) word.toList() else word.lowercase().toList()
+        _tiles.value = charList.shuffled()
         _selected.value = emptyList()
         usedIndices.clear()
     }
@@ -43,8 +45,7 @@ class ScrambledWordViewModel @Inject constructor(
     }
 
     fun checkAnswer() {
-        val word = uiState.value.currentWord?.text ?: return
         val attempt = _selected.value.joinToString("")
-        submitAnswer(attempt.equals(word, ignoreCase = true))
+        submitAnswer(isSpellingCorrect(attempt))
     }
 }

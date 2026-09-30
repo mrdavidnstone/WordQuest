@@ -140,16 +140,56 @@ fun ListsScreen(
 
     if (viewingListId != null) {
         val currentList = lists.find { it.id == viewingListId }
+        var viewingSection by remember(viewingListId) { mutableIntStateOf(0) } // Defaults to Words on open
+        val spellingWords = remember(viewingWords) { viewingWords.filter { it.definition.isNullOrBlank() } }
+        val vocabWords = remember(viewingWords) { viewingWords.filter { !it.definition.isNullOrBlank() } }
+
         AlertDialog(
             onDismissRequest = { viewModel.setViewingList(null) },
             title = { Text(currentList?.name ?: "Lesson Details") },
             text = {
-                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
-                    if (viewingWords.isEmpty()) {
-                        Text("No words in this lesson yet.", style = MaterialTheme.typography.bodyMedium)
+                Column(modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                    // Segmented Toggle
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(42.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                            .padding(2.dp)
+                    ) {
+                        Surface(
+                            onClick = { viewingSection = 0 },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (viewingSection == 0) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("Words (${spellingWords.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (viewingSection == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Surface(
+                            onClick = { viewingSection = 1 },
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (viewingSection == 1) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("Vocabulary (${vocabWords.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = if (viewingSection == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    val activeList = if (viewingSection == 0) spellingWords else vocabWords
+                    if (activeList.isEmpty()) {
+                        Text(
+                            if (viewingSection == 0) "No spelling words in this lesson." else "No vocabulary words in this lesson.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(viewingWords) { word ->
+                            items(activeList) { word ->
                                 WordItem(word)
                             }
                         }

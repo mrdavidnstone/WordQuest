@@ -33,12 +33,14 @@ fun HeroSprite(
     config: AvatarConfig,
     modifier: Modifier = Modifier,
     animationState: HeroAnimationState = HeroAnimationState.IDLE,
-    sway: Boolean = true,
+    sway: Boolean = false,
+    breath: Boolean = false,
     isJumping: Boolean = false,
     overrideTopPath: String? = null
 ) {
     val characterState = remember(config) {
         CharacterState(
+            gender = if (config.gender.contains("Girl", ignoreCase = true)) "Girl" else "Boy",
             skin = if (config.skinTone.contains("02")) "body_02" else "body_01",
             hair = if (config.hairStyle.isBlank()) "hat_hair_spiky_brown" else config.hairStyle,
             hairColor = config.hairColor,
@@ -76,7 +78,7 @@ fun HeroSprite(
         )
     } else remember { mutableFloatStateOf(0f) }
 
-    val breathScale by if (animationState == HeroAnimationState.IDLE) {
+    val breathScale by if (breath && animationState == HeroAnimationState.IDLE) {
         infiniteTransition.animateFloat(
             initialValue = 1.0f,
             targetValue = 1.015f,

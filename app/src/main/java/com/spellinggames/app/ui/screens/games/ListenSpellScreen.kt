@@ -131,9 +131,7 @@ fun ListenSpellScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     if (answer.isNotBlank() && !uiState.showFeedback) {
-                        viewModel.submitAnswer(
-                            answer.trim().equals(uiState.currentWord?.text, ignoreCase = true)
-                        )
+                        viewModel.submitAnswer(viewModel.isSpellingCorrect(answer))
                     }
                 }),
                 enabled = !uiState.showFeedback
@@ -142,9 +140,7 @@ fun ListenSpellScreen(
             Spacer(Modifier.height(16.dp))
             Button(
                 onClick = {
-                    viewModel.submitAnswer(
-                        answer.trim().equals(uiState.currentWord?.text, ignoreCase = true)
-                    )
+                    viewModel.submitAnswer(viewModel.isSpellingCorrect(answer))
                 },
                 enabled = answer.isNotBlank() && !uiState.showFeedback,
                 modifier = Modifier.fillMaxWidth()

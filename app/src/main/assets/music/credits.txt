@@ -1,0 +1,38 @@
+# MUSIC CREDITS & LICENSING
+
+## Main Theme
+
+**Track:** Arcade Fast Flow 1
+**Artist:** Trinnox
+**Source:** https://opengameart.org/content/arcade-fast-flow-sound
+
+---
+
+## Hero Build
+
+**Track:** Don't Ever Say I Didn't Do Nothing.wav
+**Artist:** Chance de la Soul
+**Source:** https://opengameart.org/content/dont-ever-say-i-didnt-do-nothing
+
+---
+
+## Lab Meltdown
+
+**Track:** Sci-Fi Puzzle Stage Select (BPM 105 Mix)
+**Artist:** glitchart
+**Source:** https://opengameart.org/content/sci-fi-puzzle-stage-select-party-sector-and-blue-beat-mintodog-vs-joth-vs-erh
+
+
+### Original Tracks Used
+
+* **Sci-fi Puzzle Stage Select** — Mintodog
+  License: CC0
+  https://opengameart.org/content/sci-fi-puzzle-stage-select
+
+* **Party Sector** — Joth
+  License: CC0
+  https://opengameart.org/content/party-sector
+
+* **Blue Beat (Loop)** — ERH (submitted by qubodup)
+  License: CC BY 3.0
+  https://opengameart.org/content/bluebeat-01-loop-cyberpunk-lab-music

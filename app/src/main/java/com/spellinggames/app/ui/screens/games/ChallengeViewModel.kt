@@ -128,7 +128,9 @@ class ChallengeViewModel @Inject constructor(
     }
 
     private fun prepareScrambled(word: String) {
-        _tiles.value = word.lowercase().toList().shuffled()
+        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
+        val charList = if (requireCaps) word.toList() else word.lowercase().toList()
+        _tiles.value = charList.shuffled()
         _selected.value = emptyList()
         _usedIndices.value = emptySet()
     }
@@ -157,9 +159,12 @@ class ChallengeViewModel @Inject constructor(
     }
 
     private fun generateChoices(correct: Char): List<Char> {
-        val alphabet = ('a'..'z').toList()
-        val distractors = alphabet.filter { it != correct.lowercaseChar() }.shuffled().take(3)
-        return (distractors + correct.lowercaseChar()).shuffled()
+        val word = uiState.value.currentWord?.text ?: ""
+        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
+        val charTarget = if (requireCaps) correct else correct.lowercaseChar()
+        val alphabet = if (requireCaps && correct.isUpperCase()) ('A'..'Z').toList() else ('a'..'z').toList()
+        val distractors = alphabet.filter { it != charTarget }.shuffled().take(3)
+        return (distractors + charTarget).shuffled()
     }
 
     // Actions for sub-games
@@ -168,7 +173,9 @@ class ChallengeViewModel @Inject constructor(
         val word = uiState.value.currentWord?.text ?: return
         if (state.currentPointer >= state.missingIndices.size) return
         val targetIdx = state.missingIndices[state.currentPointer]
-        val isCorrect = letter.equals(word[targetIdx], ignoreCase = true)
+        val correctLetter = word[targetIdx]
+        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
+        val isCorrect = if (requireCaps) letter == correctLetter else letter.equals(correctLetter, ignoreCase = true)
 
         if (isCorrect) {
             val newMasked = state.maskedWord.toMutableList()
@@ -199,15 +206,13 @@ class ChallengeViewModel @Inject constructor(
     }
 
     fun checkScrambled() {
-        val word = uiState.value.currentWord?.text ?: return
         val built = _selected.value.joinToString("")
-        submitAnswer(built.equals(word, ignoreCase = true))
+        submitAnswer(isSpellingCorrect(built))
     }
 
     fun selectWhichCorrect(option: String) {
         timerJob?.cancel()
-        val word = uiState.value.currentWord?.text ?: return
-        submitAnswer(option.equals(word, ignoreCase = true))
+        submitAnswer(isSpellingCorrect(option))
     }
 
     override fun onCleared() {

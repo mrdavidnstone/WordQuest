@@ -132,80 +132,97 @@ fun HangmanScreen(
                 )
             }
 
-            // 2. Full-Size Lab Meltdown Title Logo Overlay (Full width)
+            // 2. Full-Size Lab Meltdown Title Logo Overlay (Exact size & position matching gameplay)
             if (titleBitmap != null) {
                 Image(
                     bitmap = titleBitmap,
                     contentDescription = "Lab Meltdown Title Overlay",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter),
-                    contentScale = ContentScale.FillWidth
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             }
 
-            // 3. Foreground UI Layer (Top Back Button + Information & Lesson Card)
+            // 3. Foreground UI Layer (3-Tier Layout: Top Back Button, Center Info Card, Bottom Action Button)
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxSize()
             ) {
-                // Top Bar with Back Button
+                // TOP SECTION: Back Arrow Button (Identical position & design matching gameplay screen)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier
-                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back to Games",
-                            tint = Color.White
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(100.dp))
-
-                // Information & Lesson Selection Card
-                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color(0xFF0F172A).copy(alpha = 0.92f),
-                    border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.6f))
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                    }
+
+                    if (titleBitmap == null) {
+                        Text("LAB MELTDOWN", color = Color(0xFFA855F7), fontWeight = FontWeight.Black, fontSize = 22.sp)
+                    } else {
+                        Spacer(Modifier.height(48.dp))
+                    }
+
+                    Spacer(Modifier.width(48.dp))
+                }
+
+                // Inner Layout for Center Info Card & Bottom Play Button
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Flexible top space to clear logo and vertically center the info card
+                    Spacer(Modifier.weight(1f))
+
+                    // CENTER SECTION: Game Information & Lesson Selector (Vertically Centered)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        shape = RoundedCornerShape(22.dp),
+                        color = Color(0xFF0F172A).copy(alpha = 0.92f),
+                        border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.6f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "Prevent the laboratory meltdown by spelling words correctly! Guess letters to keep the lab stable.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Center,
+                                color = Color.White.copy(alpha = 0.95f),
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp
+                            )
+
+                            Spacer(Modifier.height(18.dp))
+
+                            ActiveListBadge(
+                                listName = uiState.listName,
+                                allLists = uiState.allLists,
+                                onListSelected = { viewModel.switchList(it) }
+                            )
+                        }
+                    }
+
+                    // Flexible bottom space to keep card vertically centered
+                    Spacer(Modifier.weight(1f))
+
+                    // BOTTOM SECTION: Play Game Action Button (Thumb Zone)
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
+                            .padding(bottom = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            "Prevent the laboratory meltdown by spelling words correctly! Guess letters to keep the lab stable.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                            color = Color.White.copy(alpha = 0.9f),
-                            fontSize = 15.sp,
-                            lineHeight = 21.sp
-                        )
-
-                        Spacer(Modifier.height(16.dp))
-
-                        ActiveListBadge(
-                            listName = uiState.listName,
-                            allLists = uiState.allLists,
-                            onListSelected = { viewModel.switchList(it) }
-                        )
-
-                        Spacer(Modifier.height(20.dp))
-
                         if (!uiState.hasWords) {
                             Text(
                                 "This list has no words. Add some words or pick another list.",
@@ -219,7 +236,7 @@ fun HangmanScreen(
                                 onClick = { viewModel.startGame() },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(52.dp),
+                                    .height(54.dp),
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFFA855F7)
@@ -255,180 +272,157 @@ fun HangmanScreen(
             Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0C1020)))
         }
 
-        // TITLE LOGO OVERLAY (lab_meltdown_title.png) - exact size & position aligned with background
-        if (titleBitmap != null) {
-            Image(
-                bitmap = titleBitmap,
-                contentDescription = "Lab Meltdown Title Overlay",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
+        // 2. LEFT UNSTABLE ROBOT ARM ANIMATION STATE MACHINE
+        RobotArmOverlay(
+            isCorrectGuess = uiState.isCorrect,
+            wrongCount = hangmanState.wrongGuesses,
+            isVictory = uiState.isFinished && uiState.isCorrect == true
+        )
 
-        // 2. ACTIVE LAB CHAOS ANIMATION OVERLAYS (Sparks, Steam, Flashes, Slime)
+        // 3. ACTIVE LAB CHAOS ANIMATION OVERLAYS (Sparks, Steam, Flashes, Slime)
         LabChaosOverlay(effect = activeEffect, wrongCount = hangmanState.wrongGuesses)
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // 3. TOP BAR WITH BACK BUTTON
+            // 3. COMBINED TOP BAR: Back Arrow + Mistakes & Stability Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
-                }
-
-                if (titleBitmap == null) {
-                    Text("LAB MELTDOWN", color = Color(0xFFA855F7), fontWeight = FontWeight.Black, fontSize = 22.sp)
-                } else {
-                    Spacer(Modifier.height(48.dp))
-                }
-
-                Spacer(Modifier.width(48.dp))
-            }
-
-            // Space under title bar to position mistakes bar cleanly underneath title logo
-            if (titleBitmap != null) {
-                Spacer(Modifier.height(100.dp))
-            }
-
-            // 4. MISTAKES & STABILITY STATUS BAR (Matching Mockup)
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 2.dp),
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFF0F172A).copy(alpha = 0.85f),
-                border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.5f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    // Mistakes Counter (0/6)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "Mistakes in",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            "${hangmanState.wrongGuesses}/6",
-                            color = if (hangmanState.wrongGuesses >= 5) Color(0xFFEF4444) else Color(0xFF22C55E),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Black
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(if (hangmanState.wrongGuesses >= 5) Color(0xFFEF4444) else Color(0xFF22C55E))
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
 
-                    // Stability Bar (6 Segments)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            "Stability",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            val maxSegments = 6
-                            val remainingSegments = (maxSegments - hangmanState.wrongGuesses).coerceIn(0, maxSegments)
-                            for (i in 1..maxSegments) {
-                                val isFilled = i <= remainingSegments
-                                val segmentColor = when {
-                                    !isFilled -> Color(0xFF334155)
-                                    remainingSegments <= 2 -> Color(0xFFEF4444)
-                                    remainingSegments <= 4 -> Color(0xFFF59E0B)
-                                    else -> Color(0xFF22C55E)
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF0F172A).copy(alpha = 0.88f),
+                    border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Mistakes Counter
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Mistakes",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "${hangmanState.wrongGuesses}/6",
+                                color = if (hangmanState.wrongGuesses >= 5) Color(0xFFEF4444) else Color(0xFF22C55E),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(if (hangmanState.wrongGuesses >= 5) Color(0xFFEF4444) else Color(0xFF22C55E))
+                            )
+                        }
+
+                        // Stability Bar
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Stability",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                val maxSegments = 6
+                                val remainingSegments = (maxSegments - hangmanState.wrongGuesses).coerceIn(0, maxSegments)
+                                for (i in 1..maxSegments) {
+                                    val isFilled = i <= remainingSegments
+                                    val segmentColor = when {
+                                        !isFilled -> Color(0xFF334155)
+                                        remainingSegments <= 2 -> Color(0xFFEF4444)
+                                        remainingSegments <= 4 -> Color(0xFFF59E0B)
+                                        else -> Color(0xFF22C55E)
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .width(12.dp)
+                                            .height(12.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(segmentColor)
+                                    )
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .width(14.dp)
-                                        .height(14.dp)
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .background(segmentColor)
-                                )
                             }
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
-            // 5. MAIN PLAY AREA (Left: Hero Character, Center: Letter Blanks, Right: Slime Blob / Lab Setup)
-            Box(
+            // 5. MAIN PLAY AREA (Top: Horizontally Centered Letter Blanks; Bottom-Left: Larger Hero Character)
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // LEFT SIDE: Player's Hero Character wearing Lab Coat matching active top color
-                    Box(
-                        modifier = Modifier
-                            .weight(0.35f)
-                            .fillMaxHeight()
-                            .padding(start = 4.dp),
-                        contentAlignment = Alignment.BottomCenter
-                    ) {
-                        val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
-                        val labCoatPath = "sprites/special/lab_meltdown/lab_meltdown_coat_${heroConfig.topColor}.png"
-                        HeroSprite(
-                            config = heroConfig,
-                            modifier = Modifier
-                                .fillMaxHeight(0.85f)
-                                .aspectRatio(285f / 335f),
-                            animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
-                            sway = false,
-                            isJumping = false,
-                            overrideTopPath = labCoatPath
-                        )
-                    }
+                Spacer(Modifier.height(8.dp))
 
-                    // CENTER: Letter Blanks (Wrapped up to 2 rows for 10-12 letter words)
-                    Column(
-                        modifier = Modifier
-                            .weight(0.65f)
-                            .fillMaxHeight(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        LabLetterBlanksGrid(hangmanState.maskedWord)
-                    }
-                }
-
-                // BOTTOM RIGHT: Cute Green Blob Creature (as in Mockup)
+                // TOP SIDE: Horizontally Centered Letter Blanks
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 12.dp, bottom = 4.dp)
-                        .size(60.dp),
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🟢", fontSize = 42.sp)
+                    LabLetterBlanksGrid(hangmanState.maskedWord)
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                // BOTTOM LEFT: Larger Hero Character standing on the far left edge above keyboard (No idle motion until victory)
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.BottomStart
+                ) {
+                    val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
+                    val labCoatPath = "sprites/special/lab_meltdown/lab_meltdown_coat_${heroConfig.topColor}.png"
+                    HeroSprite(
+                        config = heroConfig,
+                        modifier = Modifier
+                            .height(275.dp)
+                            .aspectRatio(285f / 335f),
+                        animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
+                        sway = false,
+                        breath = false,
+                        isJumping = false,
+                        overrideTopPath = labCoatPath
+                    )
                 }
             }
 
-            // 6. FULL A-Z KEYBOARD (Dark Purple Lab Styling with disabled/grayed-out keys)
+            var isCapitalized by remember { mutableStateOf(false) }
+            var isNumbersMode by remember { mutableStateOf(false) }
+            val requireCapsSetting = uiState.requireCapitalLetters
+
+            // 6. FULL KEYBOARD WITH DYNAMIC CAPITALIZATION & NUMBERS MODE
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -441,70 +435,178 @@ fun HangmanScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    val row1 = "qwertyuiop".toList()
-                    val row2 = "asdfghjkl".toList()
-                    val row3 = "zxcvbnm".toList()
+                    if (!isNumbersMode) {
+                        // --- LETTERS MODE ---
+                        val rawRow1 = "qwertyuiop".toList()
+                        val rawRow2 = "asdfghjkl".toList()
+                        val rawRow3 = "zxcvbnm".toList()
 
-                    // Row 1 (10 keys - Q to P)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
-                    ) {
-                        row1.forEach { letter ->
-                            val isGuessed = hangmanState.guessedLetters.contains(letter)
-                            val wordText = uiState.currentWord?.text?.lowercase() ?: ""
-                            val isCorrect = isGuessed && wordText.contains(letter)
+                        val targetWord = uiState.currentWord?.text ?: ""
 
+                        // Row 1 (Q to P)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                        ) {
+                            rawRow1.forEach { rawChar ->
+                                val letterChar = if (!requireCapsSetting) rawChar.uppercaseChar() else if (isCapitalized) rawChar.uppercaseChar() else rawChar.lowercaseChar()
+                                val isGuessed = if (requireCapsSetting) hangmanState.guessedLetters.contains(letterChar) else (hangmanState.guessedLetters.contains(rawChar) || hangmanState.guessedLetters.contains(rawChar.uppercaseChar()))
+                                val isCorrect = if (requireCapsSetting) (isGuessed && targetWord.contains(letterChar)) else (isGuessed && targetWord.contains(rawChar, ignoreCase = true))
+
+                                LabKeyTile(
+                                    displayLabel = letterChar.toString(),
+                                    isGuessed = isGuessed,
+                                    isCorrect = isCorrect,
+                                    onClick = { viewModel.guessLetter(letterChar) },
+                                    disabled = uiState.showFeedback || uiState.isFinished,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        // Row 2 (A to L)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp)
+                        ) {
+                            rawRow2.forEach { rawChar ->
+                                val letterChar = if (!requireCapsSetting) rawChar.uppercaseChar() else if (isCapitalized) rawChar.uppercaseChar() else rawChar.lowercaseChar()
+                                val isGuessed = if (requireCapsSetting) hangmanState.guessedLetters.contains(letterChar) else (hangmanState.guessedLetters.contains(rawChar) || hangmanState.guessedLetters.contains(rawChar.uppercaseChar()))
+                                val isCorrect = if (requireCapsSetting) (isGuessed && targetWord.contains(letterChar)) else (isGuessed && targetWord.contains(rawChar, ignoreCase = true))
+
+                                LabKeyTile(
+                                    displayLabel = letterChar.toString(),
+                                    isGuessed = isGuessed,
+                                    isCorrect = isCorrect,
+                                    onClick = { viewModel.guessLetter(letterChar) },
+                                    disabled = uiState.showFeedback || uiState.isFinished,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        // Row 3 (Optional Shift Key if Require Capitals is ON + Z to M + Mode Switcher 123)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                        ) {
+                            // SHIFT / CAPITALIZE KEY (Only shown if requireCapsSetting is ON)
+                            if (requireCapsSetting) {
+                                LabKeyTile(
+                                    displayLabel = "⇧",
+                                    isGuessed = false,
+                                    isCorrect = false,
+                                    onClick = { isCapitalized = !isCapitalized },
+                                    disabled = false,
+                                    modifier = Modifier.weight(1.3f),
+                                    isSpecialKey = true,
+                                    isActiveKey = isCapitalized
+                                )
+                            }
+
+                            rawRow3.forEach { rawChar ->
+                                val letterChar = if (!requireCapsSetting) rawChar.uppercaseChar() else if (isCapitalized) rawChar.uppercaseChar() else rawChar.lowercaseChar()
+                                val isGuessed = if (requireCapsSetting) hangmanState.guessedLetters.contains(letterChar) else (hangmanState.guessedLetters.contains(rawChar) || hangmanState.guessedLetters.contains(rawChar.uppercaseChar()))
+                                val isCorrect = if (requireCapsSetting) (isGuessed && targetWord.contains(letterChar)) else (isGuessed && targetWord.contains(rawChar, ignoreCase = true))
+
+                                LabKeyTile(
+                                    displayLabel = letterChar.toString(),
+                                    isGuessed = isGuessed,
+                                    isCorrect = isCorrect,
+                                    onClick = { viewModel.guessLetter(letterChar) },
+                                    disabled = uiState.showFeedback || uiState.isFinished,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            // MODE SWITCHER TO NUMBERS/PUNCTUATION (123)
                             LabKeyTile(
-                                letter = letter,
-                                isGuessed = isGuessed,
-                                isCorrect = isCorrect,
-                                onClick = { viewModel.guessLetter(letter) },
-                                disabled = uiState.showFeedback || uiState.isFinished,
-                                modifier = Modifier.weight(1f)
+                                displayLabel = "123",
+                                isGuessed = false,
+                                isCorrect = false,
+                                onClick = { isNumbersMode = true },
+                                disabled = false,
+                                modifier = Modifier.weight(1.3f),
+                                isSpecialKey = true
                             )
                         }
-                    }
+                    } else {
+                        // --- NUMBERS & PUNCTUATION MODE ---
+                        val numRow1 = "1234567890".toList()
+                        val numRow2 = "@#$%&-+()/".toList()
+                        val numRow3 = "*\"':;!?,.".toList()
 
-                    // Row 2 (9 keys - A to L)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp)
-                    ) {
-                        row2.forEach { letter ->
-                            val isGuessed = hangmanState.guessedLetters.contains(letter)
-                            val wordText = uiState.currentWord?.text?.lowercase() ?: ""
-                            val isCorrect = isGuessed && wordText.contains(letter)
+                        val targetWord = uiState.currentWord?.text ?: ""
 
-                            LabKeyTile(
-                                letter = letter,
-                                isGuessed = isGuessed,
-                                isCorrect = isCorrect,
-                                onClick = { viewModel.guessLetter(letter) },
-                                disabled = uiState.showFeedback || uiState.isFinished,
-                                modifier = Modifier.weight(1f)
-                            )
+                        // Row 1 (Numbers 1-0)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                        ) {
+                            numRow1.forEach { symbol ->
+                                val isGuessed = hangmanState.guessedLetters.contains(symbol)
+                                val isCorrect = isGuessed && targetWord.contains(symbol)
+
+                                LabKeyTile(
+                                    displayLabel = symbol.toString(),
+                                    isGuessed = isGuessed,
+                                    isCorrect = isCorrect,
+                                    onClick = { viewModel.guessLetter(symbol) },
+                                    disabled = uiState.showFeedback || uiState.isFinished,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
-                    }
 
-                    // Row 3 (7 keys - Z to M)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 50.dp)
-                    ) {
-                        row3.forEach { letter ->
-                            val isGuessed = hangmanState.guessedLetters.contains(letter)
-                            val wordText = uiState.currentWord?.text?.lowercase() ?: ""
-                            val isCorrect = isGuessed && wordText.contains(letter)
+                        // Row 2 (Symbols)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                        ) {
+                            numRow2.forEach { symbol ->
+                                val isGuessed = hangmanState.guessedLetters.contains(symbol)
+                                val isCorrect = isGuessed && targetWord.contains(symbol)
 
+                                LabKeyTile(
+                                    displayLabel = symbol.toString(),
+                                    isGuessed = isGuessed,
+                                    isCorrect = isCorrect,
+                                    onClick = { viewModel.guessLetter(symbol) },
+                                    disabled = uiState.showFeedback || uiState.isFinished,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        // Row 3 (ABC Mode Switcher + Punctuation)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
+                        ) {
+                            // MODE SWITCHER BACK TO LETTERS (ABC)
                             LabKeyTile(
-                                letter = letter,
-                                isGuessed = isGuessed,
-                                isCorrect = isCorrect,
-                                onClick = { viewModel.guessLetter(letter) },
-                                disabled = uiState.showFeedback || uiState.isFinished,
-                                modifier = Modifier.weight(1f)
+                                displayLabel = "ABC",
+                                isGuessed = false,
+                                isCorrect = false,
+                                onClick = { isNumbersMode = false },
+                                disabled = false,
+                                modifier = Modifier.weight(1.5f),
+                                isSpecialKey = true
                             )
+
+                            numRow3.forEach { symbol ->
+                                val isGuessed = hangmanState.guessedLetters.contains(symbol)
+                                val isCorrect = isGuessed && targetWord.contains(symbol)
+
+                                LabKeyTile(
+                                    displayLabel = symbol.toString(),
+                                    isGuessed = isGuessed,
+                                    isCorrect = isCorrect,
+                                    onClick = { viewModel.guessLetter(symbol) },
+                                    disabled = uiState.showFeedback || uiState.isFinished,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
@@ -520,25 +622,29 @@ fun HangmanScreen(
 
 @Composable
 private fun LabLetterBlanksGrid(maskedWord: String) {
-    val cleanLetters = maskedWord.toList()
-    val maxRow1 = if (cleanLetters.size > 6) (cleanLetters.size + 1) / 2 else cleanLetters.size
-    val row1 = cleanLetters.take(maxRow1)
-    val row2 = cleanLetters.drop(maxRow1)
+    // Check if the masked word contains spaces (multi-word phrase)
+    val wordRows = remember(maskedWord) {
+        if (maskedWord.contains(' ')) {
+            // Split by space so each word gets its own row (skipping a row for spaces)
+            maskedWord.split(' ').filter { it.isNotEmpty() }
+        } else {
+            // Single word: if longer than 7 letters, split into 2 balanced rows
+            if (maskedWord.length > 7) {
+                val mid = (maskedWord.length + 1) / 2
+                listOf(maskedWord.take(mid), maskedWord.drop(mid))
+            } else {
+                listOf(maskedWord)
+            }
+        }
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // First Row
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            row1.forEach { char ->
-                LabLetterBlankTile(char = char)
-            }
-        }
-        // Second Row (if > 6 letters)
-        if (row2.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row2.forEach { char ->
+        wordRows.forEach { wordChunk ->
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                wordChunk.forEach { char ->
                     LabLetterBlankTile(char = char)
                 }
             }
@@ -550,15 +656,15 @@ private fun LabLetterBlanksGrid(maskedWord: String) {
 private fun LabLetterBlankTile(char: Char) {
     Surface(
         modifier = Modifier
-            .size(width = 42.dp, height = 48.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF0F172A).copy(alpha = 0.9f),
+            .size(width = 38.dp, height = 44.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF0F172A).copy(alpha = 0.92f),
         border = BorderStroke(2.dp, Color(0xFFA855F7))
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = if (char == '_') "" else char.uppercaseChar().toString(),
-                fontSize = 24.sp,
+                text = if (char == '_') "" else char.toString(),
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Black,
                 color = Color.White
             )
@@ -568,30 +674,34 @@ private fun LabLetterBlankTile(char: Char) {
 
 @Composable
 private fun LabKeyTile(
-    letter: Char,
+    displayLabel: String,
     isGuessed: Boolean,
     isCorrect: Boolean,
     onClick: () -> Unit,
     disabled: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSpecialKey: Boolean = false,
+    isActiveKey: Boolean = false
 ) {
     val scale = remember { Animatable(1f) }
     val scope = rememberCoroutineScope()
 
     val bgColor = when {
+        isActiveKey -> Color(0xFFA855F7)
         isCorrect -> Color(0xFF22C55E)
-        isGuessed -> Color(0xFF334155)
+        isGuessed && !isSpecialKey -> Color(0xFF334155)
+        isSpecialKey -> Color(0xFF3730A3)
         else -> Color(0xFF4C1D95)
     }
 
     Surface(
         modifier = modifier
-            .height(42.dp)
+            .height(40.dp)
             .scale(scale.value),
         shape = RoundedCornerShape(8.dp),
         color = bgColor,
-        border = BorderStroke(1.dp, if (isGuessed) Color.Transparent else Color(0xFFA855F7)),
-        enabled = !isGuessed && !disabled,
+        border = BorderStroke(1.dp, if (isActiveKey) Color.White else if (isGuessed && !isSpecialKey) Color.Transparent else Color(0xFFA855F7)),
+        enabled = (!isGuessed || isSpecialKey) && !disabled,
         onClick = {
             scope.launch {
                 scale.animateTo(0.9f, tween(50))
@@ -602,10 +712,10 @@ private fun LabKeyTile(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
-                text = letter.uppercase(),
-                fontSize = 15.sp,
+                text = displayLabel,
+                fontSize = if (displayLabel.length > 2) 13.sp else 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isGuessed && !isCorrect) Color.Gray else Color.White,
+                color = if (isGuessed && !isCorrect && !isSpecialKey) Color.Gray else Color.White,
                 maxLines = 1
             )
         }
@@ -614,7 +724,19 @@ private fun LabKeyTile(
 
 @Composable
 private fun LabChaosOverlay(effect: LabChaosEffect?, wrongCount: Int) {
-    if (effect == null && wrongCount < 6) return
+    val context = LocalContext.current
+    val sparkBitmap = remember(context) {
+        loadAssetImageBitmap(context, "games/lab_meltdown/animations/spark.png")
+    }
+
+    val isSparkActive = effect in listOf(
+        LabChaosEffect.CONSOLE_SPARKS,
+        LabChaosEffect.POWER_SURGE,
+        LabChaosEffect.ROBOT_ARM_GLITCH,
+        LabChaosEffect.ALARM_FLASH
+    ) || wrongCount >= 4
+
+    if (effect == null && wrongCount < 4) return
 
     val infiniteAnim = rememberInfiniteTransition(label = "chaos")
     val alphaAnim by infiniteAnim.animateFloat(
@@ -642,6 +764,9 @@ private fun LabChaosOverlay(effect: LabChaosEffect?, wrongCount: Int) {
         else -> {}
     }
 
+    // Spark Animation Overlay
+    SparkAnimationOverlay(sparkBitmap = sparkBitmap, isActive = isSparkActive)
+
     // Meltdown full effect on 6th mistake
     if (wrongCount >= 6) {
         Box(
@@ -649,6 +774,241 @@ private fun LabChaosOverlay(effect: LabChaosEffect?, wrongCount: Int) {
                 .fillMaxSize()
                 .background(Color.Red.copy(alpha = alphaAnim * 0.5f))
         )
+    }
+}
+
+@Composable
+private fun SparkAnimationOverlay(
+    sparkBitmap: ImageBitmap?,
+    isActive: Boolean
+) {
+    if (sparkBitmap == null || !isActive) return
+
+    val infiniteTransition = rememberInfiniteTransition(label = "spark_anim")
+
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(110, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "spark_alpha"
+    )
+
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.9f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(160, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "spark_scale"
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Left Robot Arm Spark
+        Image(
+            bitmap = sparkBitmap,
+            contentDescription = "Console Spark",
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 12.dp, top = 55.dp)
+                .size(130.dp)
+                .graphicsLayer {
+                    this.alpha = alpha
+                    scaleX = scale
+                    scaleY = scale
+                    rotationZ = -15f
+                },
+            contentScale = ContentScale.Fit
+        )
+
+        // Right Console Spark
+        Image(
+            bitmap = sparkBitmap,
+            contentDescription = "Power Spark",
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 16.dp, top = 65.dp)
+                .size(140.dp)
+                .graphicsLayer {
+                    this.alpha = alpha * 0.95f
+                    scaleX = scale * 1.1f
+                    scaleY = scale * 1.1f
+                    rotationZ = 35f
+                },
+            contentScale = ContentScale.Fit
+        )
+
+        // Center Power Grid Spark
+        Image(
+            bitmap = sparkBitmap,
+            contentDescription = "Center Spark",
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(bottom = 50.dp)
+                .size(145.dp)
+                .graphicsLayer {
+                    this.alpha = alpha * 0.85f
+                    scaleX = scale
+                    scaleY = scale
+                    rotationZ = 180f
+                },
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+enum class RobotArmState {
+    UNSTABLE,
+    WAITING_TO_SETTLE,
+    SETTLING,
+    STABLE_HOLD,
+    STABLE_IDLE
+}
+
+@Composable
+private fun RobotArmOverlay(
+    isCorrectGuess: Boolean?,
+    wrongCount: Int,
+    isVictory: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    var armState by remember { mutableStateOf(RobotArmState.UNSTABLE) }
+    var phaseStart by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+
+    val randomOffset = remember { (0..800).random().toLong() }
+
+    // Trigger stabilization on correct guess or victory
+    LaunchedEffect(isCorrectGuess, isVictory, wrongCount) {
+        if (isVictory) {
+            if (armState == RobotArmState.UNSTABLE || armState == RobotArmState.WAITING_TO_SETTLE) {
+                armState = RobotArmState.WAITING_TO_SETTLE
+            }
+        } else if (isCorrectGuess == true) {
+            if (armState == RobotArmState.UNSTABLE) {
+                armState = RobotArmState.WAITING_TO_SETTLE
+            }
+        } else if (isCorrectGuess == false && wrongCount > 0) {
+            // Wrong guess destabilizes arm back to UNSTABLE
+            armState = RobotArmState.UNSTABLE
+            phaseStart = System.currentTimeMillis()
+        }
+    }
+
+    // Ticker loop driving the state machine and exact frame timing
+    LaunchedEffect(armState) {
+        if (armState == RobotArmState.STABLE_HOLD) {
+            delay(1500L)
+            armState = RobotArmState.STABLE_IDLE
+            phaseStart = System.currentTimeMillis()
+            currentFrameIndex = 0
+            return@LaunchedEffect
+        }
+
+        while (true) {
+            delay(16L) // ~60fps ticker
+            val now = System.currentTimeMillis()
+
+            when (armState) {
+                RobotArmState.UNSTABLE -> {
+                    val elapsed = (now - phaseStart) + randomOffset
+                    currentFrameIndex = ((elapsed * 12L) / 1000L).toInt() % 24
+                }
+                RobotArmState.WAITING_TO_SETTLE -> {
+                    val elapsed = (now - phaseStart) + randomOffset
+                    val idx = ((elapsed * 12L) / 1000L).toInt() % 24
+                    currentFrameIndex = idx
+                    // Cut precisely at frame 9 of L3_meltdown to match settle_to_normal start pose!
+                    if (idx == 9) {
+                        armState = RobotArmState.SETTLING
+                        phaseStart = System.currentTimeMillis()
+                        currentFrameIndex = 0
+                    }
+                }
+                RobotArmState.SETTLING -> {
+                    val elapsed = now - phaseStart
+                    val idx = ((elapsed * 12L) / 1000L).toInt()
+                    if (idx >= 16) {
+                        armState = RobotArmState.STABLE_HOLD
+                        phaseStart = System.currentTimeMillis()
+                        currentFrameIndex = 0
+                    } else {
+                        currentFrameIndex = idx
+                    }
+                }
+                RobotArmState.STABLE_IDLE -> {
+                    val elapsed = now - phaseStart
+                    currentFrameIndex = ((elapsed * 12L) / 1000L).toInt() % 48
+                }
+                else -> {}
+            }
+        }
+    }
+
+    // Resolve current frame asset paths
+    val formattedFrame = if (currentFrameIndex < 10) "0$currentFrameIndex" else "$currentFrameIndex"
+
+    val (armPath, sparkPath) = when (armState) {
+        RobotArmState.UNSTABLE, RobotArmState.WAITING_TO_SETTLE -> {
+            "games/lab_meltdown/animations/left_robot_arm/L3_meltdown/arm_$formattedFrame.png" to
+            "games/lab_meltdown/animations/left_robot_arm/L3_meltdown_sparks/spark_$formattedFrame.png"
+        }
+        RobotArmState.SETTLING -> {
+            "games/lab_meltdown/animations/left_robot_arm/settle_to_normal/arm_$formattedFrame.png" to null
+        }
+        RobotArmState.STABLE_HOLD -> {
+            "games/lab_meltdown/animations/left_robot_arm/arm_normal.png" to null
+        }
+        RobotArmState.STABLE_IDLE -> {
+            "games/lab_meltdown/animations/left_robot_arm/stable_idle/arm_$formattedFrame.png" to null
+        }
+    }
+
+    val armBitmap = remember(context, armPath) {
+        loadAssetImageBitmap(context, armPath)
+    }
+
+    val sparkBitmap = remember(context, sparkPath) {
+        if (sparkPath != null) loadAssetImageBitmap(context, sparkPath) else null
+    }
+
+    // Matrix Coordinate Scaling matching 851x1849 Game Canvas
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val canvasW = this.maxWidth
+        val canvasH = this.maxHeight
+
+        val armW = canvasW * (496f / 851f)
+        val armH = canvasH * (528f / 1849f)
+        val armX = canvasW * (-98f / 851f)
+        val armY = canvasH * (428f / 1849f)
+
+        Box(
+            modifier = Modifier
+                .offset(x = armX, y = armY)
+                .size(width = armW, height = armH)
+        ) {
+            if (armBitmap != null) {
+                Image(
+                    bitmap = armBitmap,
+                    contentDescription = "Robot Arm Frame",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            if (sparkBitmap != null) {
+                Image(
+                    bitmap = sparkBitmap,
+                    contentDescription = "Robot Arm Spark Frame",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
     }
 }
 
@@ -716,11 +1076,16 @@ private fun ResultOverlay(
 }
 
 private fun loadAssetImageBitmap(context: Context, assetName: String): ImageBitmap? {
-    return try {
-        context.assets.open(assetName).use { stream ->
-            BitmapFactory.decodeStream(stream)?.asImageBitmap()
-        }
-    } catch (_: Exception) {
-        null
+    val pathsToTry = listOf(
+        "games/lab_meltdown/$assetName",
+        assetName
+    )
+    for (path in pathsToTry) {
+        try {
+            context.assets.open(path).use { stream ->
+                BitmapFactory.decodeStream(stream)?.asImageBitmap()?.let { return it }
+            }
+        } catch (_: Exception) {}
     }
+    return null
 }

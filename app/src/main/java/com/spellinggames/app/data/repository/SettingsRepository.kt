@@ -3,6 +3,7 @@ package com.spellinggames.app.data.repository
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -44,6 +45,7 @@ class SettingsRepository @Inject constructor(
     private val avatarAccessoryKey = stringPreferencesKey("avatar_accessory")
 
     private val overallDifficultyKey = stringPreferencesKey("overall_difficulty")
+    private val requireCapitalLettersKey = booleanPreferencesKey("require_capital_letters")
 
     val parentPin: Flow<String?> = context.dataStore.data.map { it[parentPinKey] }
     val totalPoints: Flow<Int> = context.dataStore.data.map {
@@ -51,6 +53,10 @@ class SettingsRepository @Inject constructor(
     }
     val currentStreak: Flow<Int> = context.dataStore.data.map {
         it[streakKey]?.toIntOrNull() ?: 0
+    }
+
+    val requireCapitalLetters: Flow<Boolean> = context.dataStore.data.map {
+        it[requireCapitalLettersKey] ?: false
     }
 
     val avatar: Flow<Avatar> = context.dataStore.data.map { prefs ->
@@ -97,6 +103,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setOverallDifficulty(difficulty: Int) {
         context.dataStore.edit { it[overallDifficultyKey] = difficulty.toString() }
+    }
+
+    suspend fun setRequireCapitalLetters(enabled: Boolean) {
+        context.dataStore.edit { it[requireCapitalLettersKey] = enabled }
     }
 
     suspend fun updateFullAvatar(a: Avatar) {

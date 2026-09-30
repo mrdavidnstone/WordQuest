@@ -50,6 +50,7 @@ fun ParentScreen(
     val lists by viewModel.lists.collectAsState()
     val selectedListId by viewModel.selectedListId.collectAsState()
     val overallDifficulty by viewModel.overallDifficulty.collectAsState()
+    val requireCapitalLetters by viewModel.requireCapitalLetters.collectAsState()
     val currentPage by viewModel.currentPage.collectAsState()
     val activeLessonId by viewModel.activeLessonId.collectAsState()
     val words by viewModel.words.collectAsState()
@@ -116,6 +117,8 @@ fun ParentScreen(
                                     stats = stats,
                                     difficulty = overallDifficulty,
                                     onDifficultyChange = { viewModel.setOverallDifficulty(it) },
+                                    requireCapitalLetters = requireCapitalLetters,
+                                    onRequireCapitalLettersChange = { viewModel.setRequireCapitalLetters(it) },
                                     lessons = lists,
                                     activeLessonId = activeLessonId,
                                     onActivate = { viewModel.activateLesson(it) },
@@ -355,6 +358,8 @@ fun ParentOverviewPage(
     stats: ParentViewModel.ParentStats,
     difficulty: Int,
     onDifficultyChange: (Int) -> Unit,
+    requireCapitalLetters: Boolean,
+    onRequireCapitalLettersChange: (Boolean) -> Unit,
     lessons: List<SpellingListEntity>,
     activeLessonId: Long?,
     onActivate: (Long) -> Unit,
@@ -399,6 +404,48 @@ fun ParentOverviewPage(
                         selectedLabelColor = Color.White,
                         containerColor = PortalCard,
                         labelColor = PortalTextSecondary
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Require Capital Letters Settings Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = PortalCard)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Require Capital Letters",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "When turned ON, games strictly enforce capital letters (e.g. 'George Washington'). When turned OFF, any case is accepted.",
+                        color = PortalTextSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Switch(
+                    checked = requireCapitalLetters,
+                    onCheckedChange = onRequireCapitalLettersChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = PortalAction
                     )
                 )
             }
@@ -505,25 +552,88 @@ fun LessonDetailPage(
 
         // Action Buttons
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            PortalActionButton(Modifier.weight(1f), "Add Words", "Build vocabulary", Icons.Default.Add, PortalAction, onAddWords)
-            PortalActionButton(Modifier.weight(1f), "Add Vocabulary", "Expand knowledge", Icons.AutoMirrored.Filled.MenuBook, PortalCard, onAddVocab)
+            PortalActionButton(Modifier.weight(1f), "Add Words", "Spelling list", Icons.Default.Add, PortalAction, onAddWords)
+            PortalActionButton(Modifier.weight(1f), "Add Vocabulary", "Definitions list", Icons.AutoMirrored.Filled.MenuBook, PortalCard, onAddVocab)
         }
 
         Spacer(Modifier.height(24.dp))
         
-        if (words.isNotEmpty()) {
-            Text("Lesson Content", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
-            Spacer(Modifier.height(12.dp))
+        var activeSection by remember(lesson.id) { mutableIntStateOf(0) } // 0 = Words, 1 = Vocabulary
+        val spellingWords = remember(words) { words.filter { it.definition.isNullOrBlank() } }
+        val vocabWords = remember(words) { words.filter { !it.definition.isNullOrBlank() } }
 
-            words.forEach { word ->
+        Text("Lesson Content", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+        Spacer(Modifier.height(12.dp))
+
+        // Section Toggle Bar (Defaults to Words on open of lesson)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = PortalCard
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Words Tab
+                Surface(
+                    onClick = { activeSection = 0 },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (activeSection == 0) PortalAction else Color.Transparent,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            "📝 Words (${spellingWords.size})",
+                            fontSize = 13.sp,
+                            fontWeight = if (activeSection == 0) FontWeight.Bold else FontWeight.Medium,
+                            color = if (activeSection == 0) Color.White else PortalTextSecondary
+                        )
+                    }
+                }
+
+                // Vocabulary Tab
+                Surface(
+                    onClick = { activeSection = 1 },
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (activeSection == 1) PortalAction else Color.Transparent,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            "📖 Vocabulary (${vocabWords.size})",
+                            fontSize = 13.sp,
+                            fontWeight = if (activeSection == 1) FontWeight.Bold else FontWeight.Medium,
+                            color = if (activeSection == 1) Color.White else PortalTextSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        val displayList = if (activeSection == 0) spellingWords else vocabWords
+
+        if (displayList.isNotEmpty()) {
+            displayList.forEach { word ->
                 WordRow(word, onEdit = { onEditWord(word) }, onDelete = { onDeleteWord(it) })
                 Spacer(Modifier.height(8.dp))
             }
         } else {
+            val sectionName = if (activeSection == 0) "spelling words" else "vocabulary words"
             EmptyState(
-                emoji = "📝",
-                title = "No words yet",
-                message = "Add some words or vocabulary items to this lesson to get started."
+                emoji = if (activeSection == 0) "📝" else "📖",
+                title = "No $sectionName yet",
+                message = if (activeSection == 0) "Tap 'Add Words' above to add spelling words to this lesson." else "Tap 'Add Vocabulary' above to add words with definitions."
             )
         }
         

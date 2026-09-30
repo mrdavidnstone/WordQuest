@@ -33,7 +33,8 @@ class MissingLettersViewModel @Inject constructor(
 
         val targetIdx = state.missingIndices[state.currentPointer]
         val correctLetter = word[targetIdx]
-        val isCorrect = letter.equals(correctLetter, ignoreCase = true)
+        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
+        val isCorrect = if (requireCaps) letter == correctLetter else letter.equals(correctLetter, ignoreCase = true)
 
         if (isCorrect) {
             val newMasked = state.maskedWord.toMutableList()
@@ -92,11 +93,14 @@ class MissingLettersViewModel @Inject constructor(
     }
 
     private fun generateChoices(correct: Char): List<Char> {
-        val alphabet = ('a'..'z').toList()
+        val word = uiState.value.currentWord?.text ?: ""
+        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
+        val charTarget = if (requireCaps) correct else correct.lowercaseChar()
+        val alphabet = if (requireCaps && correct.isUpperCase()) ('A'..'Z').toList() else ('a'..'z').toList()
         val distractors = alphabet
-            .filter { it != correct.lowercaseChar() }
+            .filter { it != charTarget }
             .shuffled()
             .take(3)
-        return (distractors + correct.lowercaseChar()).shuffled()
+        return (distractors + charTarget).shuffled()
     }
 }

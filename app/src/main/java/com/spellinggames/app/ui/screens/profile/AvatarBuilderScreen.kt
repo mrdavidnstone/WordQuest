@@ -24,8 +24,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.spellinggames.app.ui.components.avatar.SpriteOption
 import com.spellinggames.app.ui.components.avatar.SpriteRepository
+import com.spellinggames.app.ui.screens.profile.character.AvatarSpriteRenderer
 import com.spellinggames.app.ui.screens.profile.character.CharacterRenderer
 import com.spellinggames.app.ui.screens.profile.character.CharacterState
 import com.spellinggames.app.ui.screens.profile.character.CharacterViewModel
@@ -219,6 +222,55 @@ private fun StationaryColorBar(
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)) {
         when (category) {
+            CustomizerCategory.BODY -> {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("GENDER", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF00B0FF), letterSpacing = 1.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val isBoy = characterState.gender.equals("Boy", ignoreCase = true)
+                        FilterChip(
+                            selected = isBoy,
+                            onClick = { onUpdate { it.copy(gender = "Boy") } },
+                            label = { Text("👦 Boy", fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF1E88E5),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFF0D234A),
+                                labelColor = Color.White.copy(alpha = 0.7f)
+                            )
+                        )
+                        FilterChip(
+                            selected = !isBoy,
+                            onClick = { onUpdate { it.copy(gender = "Girl") } },
+                            label = { Text("👧 Girl", fontSize = 11.sp) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF1E88E5),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFF0D234A),
+                                labelColor = Color.White.copy(alpha = 0.7f)
+                            )
+                        )
+                    }
+                }
+            }
+            CustomizerCategory.HAIR -> {
+                Text("HAIR COLOR", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF00B0FF), letterSpacing = 1.sp)
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.15f)))
+                val hairColors = listOf(
+                    "brown" to "#6D4C41",
+                    "black" to "#111111",
+                    "blonde" to "#FBC02D",
+                    "red" to "#E53935",
+                    "purple" to "#7E57C2",
+                    "gray" to "#546E7A"
+                )
+                ColorSwatchRow(colors = hairColors, selectedId = characterState.hairColor) { color ->
+                    onUpdate { it.copy(hairColor = color) }
+                }
+            }
             CustomizerCategory.TOPS -> {
                 Text("TOP COLOR", fontSize = 10.sp, fontWeight = FontWeight.Black, color = Color(0xFF00B0FF), letterSpacing = 1.sp)
                 Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.15f)))
@@ -309,7 +361,9 @@ private fun ThreeColumnSpriteGrid(
 
     when (category) {
         CustomizerCategory.BODY -> {
-            val scanned = remember(context) { SpriteRepository.scanDirectory(context, "sprites/base_body") }
+            val scanned = remember(context, characterState.gender) {
+                SpriteRepository.scanDirectory(context, "sprites/base_body", characterState.gender)
+            }
             val options = scanned.ifEmpty {
                 listOf(
                     SpriteOption("body_01.png", "Body 01", "sprites/base_body/body_01.png"),
@@ -321,40 +375,62 @@ private fun ThreeColumnSpriteGrid(
             }
         }
         CustomizerCategory.HAIR -> {
-            val scanned = remember(context) { SpriteRepository.scanDirectory(context, "sprites/hair") }
+            val scanned = remember(context, characterState.gender) {
+                SpriteRepository.scanDirectory(context, "sprites/hair", characterState.gender)
+            }
             val options = scanned.ifEmpty {
                 listOf(
-                    SpriteOption("spiky_brown.png", "Spiky Brown", "sprites/hair/spiky_brown.png"),
-                    SpriteOption("spiky.png", "Spiky", "sprites/hair/spiky.png"),
-                    SpriteOption("side_part.png", "Side Part", "sprites/hair/side_part.png"),
+                    SpriteOption("spiky_brown.png", "Spiky", "sprites/hair/spiky_brown.png"),
+                    SpriteOption("spiky.png", "Messy", "sprites/hair/spiky.png"),
+                    SpriteOption("side_part.png", "Side Swept", "sprites/hair/side_part.png"),
                     SpriteOption("curly.png", "Curly", "sprites/hair/curly.png"),
-                    SpriteOption("undercut.png", "Undercut", "sprites/hair/undercut.png")
+                    SpriteOption("undercut.png", "Straight", "sprites/hair/undercut.png")
                 )
             }
-            // Selecting hair clears hat (hat = "none")
-            Mockup3ColumnGrid(items = options, selectedId = characterState.hair) { option ->
-                val hairClean = option.id.removeSuffix(".png")
-                onUpdate { it.copy(hair = hairClean, hat = "none") }
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(options, key = { it.fullAssetPath }) { option ->
+                    val hairClean = option.id.removeSuffix(".png")
+                    val isSelected = hairClean == characterState.hair || option.id == characterState.hair
+
+                    HairOptionPortraitCard(
+                        option = option,
+                        characterState = characterState,
+                        isSelected = isSelected,
+                        onSelect = {
+                            onUpdate { it.copy(hair = hairClean, hat = "none") }
+                        }
+                    )
+                }
             }
         }
         CustomizerCategory.HATS -> {
-            val scanned = remember(context) { SpriteRepository.scanDirectory(context, "sprites/hats") }
-            val options = scanned.ifEmpty {
+            val scanned = remember(context, characterState.gender) {
+                SpriteRepository.scanDirectory(context, "sprites/hats", characterState.gender)
+            }
+            val baseOptions = scanned.ifEmpty {
                 listOf(
-                    SpriteOption("cap.png", "Red Cap", "sprites/hats/cap.png"),
-                    SpriteOption("cap_red.png", "Cap Red", "sprites/hats/cap_red.png"),
-                    SpriteOption("baseball_red.png", "Baseball Red", "sprites/hats/baseball_red.png")
+                    SpriteOption("cap.png", "Cap", "sprites/hats/cap.png"),
+                    SpriteOption("cowboy.png", "Cowboy", "sprites/hats/cowboy.png"),
+                    SpriteOption("crown.png", "Crown", "sprites/hats/crown.png"),
+                    SpriteOption("bucket.png", "Bucket", "sprites/hats/bucket.png")
                 )
             }
-            // Selecting a hat automatically uses special hat hair (hat_hair_spiky_brown)
+            val options = listOf(SpriteOption("none", "None", "sprites/hats/none")) + baseOptions.filter { it.id != "none" }
+
             Mockup3ColumnGrid(items = options, selectedId = characterState.hat) { option ->
                 val hatClean = option.id.removeSuffix(".png")
                 onUpdate { it.copy(hat = hatClean) }
             }
         }
         CustomizerCategory.TOPS -> {
-            val scanned = remember(context, characterState.topColor) {
-                SpriteRepository.scanDirectory(context, "sprites/top/${characterState.topColor}")
+            val scanned = remember(context, characterState.topColor, characterState.gender) {
+                SpriteRepository.scanDirectory(context, "sprites/top/${characterState.topColor}", characterState.gender)
             }
             val options = scanned.ifEmpty {
                 listOf(
@@ -369,8 +445,8 @@ private fun ThreeColumnSpriteGrid(
             }
         }
         CustomizerCategory.BOTTOMS -> {
-            val scanned = remember(context, characterState.bottomColor) {
-                SpriteRepository.scanDirectory(context, "sprites/bottom/${characterState.bottomColor}")
+            val scanned = remember(context, characterState.bottomColor, characterState.gender) {
+                SpriteRepository.scanDirectory(context, "sprites/bottom/${characterState.bottomColor}", characterState.gender)
             }
             val options = scanned.ifEmpty {
                 listOf(
@@ -384,7 +460,9 @@ private fun ThreeColumnSpriteGrid(
             }
         }
         CustomizerCategory.SHOES -> {
-            val scanned = remember(context) { SpriteRepository.scanDirectory(context, "sprites/shoes") }
+            val scanned = remember(context, characterState.gender) {
+                SpriteRepository.scanDirectory(context, "sprites/shoes", characterState.gender)
+            }
             val options = scanned.ifEmpty {
                 listOf(
                     SpriteOption("shoes_blue.png", "Blue Shoes", "sprites/shoes/shoes_blue.png"),
@@ -396,6 +474,84 @@ private fun ThreeColumnSpriteGrid(
                 val shoesClean = option.id.removeSuffix(".png")
                 onUpdate { it.copy(shoes = shoesClean) }
             }
+        }
+    }
+}
+
+@Composable
+private fun HairOptionPortraitCard(
+    option: SpriteOption,
+    characterState: CharacterState,
+    isSelected: Boolean,
+    onSelect: () -> Unit
+) {
+    val hairClean = option.id.removeSuffix(".png")
+    val previewCharacter = remember(characterState, hairClean) {
+        characterState.copy(hair = hairClean, hat = "none")
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(0.85f)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF0F264A))
+            .border(BorderStroke(2.dp, if (isSelected) Color(0xFF00B0FF) else Color.Transparent), RoundedCornerShape(16.dp))
+            .pointerInput(option.fullAssetPath) {
+                detectTapGestures(onTap = { onSelect() })
+            }
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Head & Shoulders Zoomed Portrait Preview Box
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clipToBounds(),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                AvatarSpriteRenderer(
+                    character = previewCharacter,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = 2.4f
+                            scaleY = 2.4f
+                            translationY = 68.dp.toPx()
+                        }
+                )
+            }
+
+            // Label Bar at Bottom
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp)
+                    .background(Color(0xFF081830)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Hair (${option.displayName})",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        if (isSelected) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(18.dp)
+                    .background(Color(0xFF00B0FF), CircleShape)
+            )
         }
     }
 }
@@ -418,7 +574,7 @@ private fun Mockup3ColumnGrid(
             val cleanId = option.id.removeSuffix(".png")
             val isSelected = cleanId == selectedId || option.id == selectedId
             val thumbnailBitmap = remember(option.fullAssetPath) {
-                SpriteRepository.loadSpriteBitmap(context, option.fullAssetPath)
+                SpriteRepository.loadCroppedItemBitmap(context, option.fullAssetPath)
             }
 
             Box(
@@ -439,7 +595,7 @@ private fun Mockup3ColumnGrid(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
-                            .padding(6.dp),
+                            .padding(8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(

@@ -24,7 +24,8 @@ data class GameUiState(
     val allLists: List<SpellingListEntity> = emptyList(),
     val hasWords: Boolean = false,
     val avatar: Avatar = Avatar(),
-    val overallDifficulty: Int = 1
+    val overallDifficulty: Int = 1,
+    val requireCapitalLetters: Boolean = false
 )
 
 abstract class BaseGameViewModel(
@@ -44,7 +45,7 @@ abstract class BaseGameViewModel(
         viewModelScope.launch {
             val listFlow = combine(repository.getActiveList(), repository.getAllLists()) { active: SpellingListEntity?, all: List<SpellingListEntity> -> active to all }
 
-            combine(listFlow, settings.avatar, settings.overallDifficulty) { listData, avatar, diff ->
+            combine(listFlow, settings.avatar, settings.overallDifficulty, settings.requireCapitalLetters) { listData, avatar, diff, requireCaps ->
                 val (list, all) = listData
                 activeListId = list?.id
                 _uiState.update { 
@@ -53,7 +54,8 @@ abstract class BaseGameViewModel(
                         activeListId = list?.id,
                         allLists = all,
                         avatar = avatar,
-                        overallDifficulty = diff
+                        overallDifficulty = diff,
+                        requireCapitalLetters = requireCaps
                     ) 
                 }
                 if (list != null) {
@@ -61,6 +63,17 @@ abstract class BaseGameViewModel(
                     _uiState.update { it.copy(hasWords = count > 0) }
                 }
             }.collect { }
+        }
+    }
+
+    fun isSpellingCorrect(userInput: String): Boolean {
+        val targetWord = _uiState.value.currentWord?.text ?: return false
+        val requireCaps = _uiState.value.requireCapitalLetters || targetWord.any { it.isUpperCase() }
+
+        return if (requireCaps) {
+            userInput.trim() == targetWord.trim()
+        } else {
+            userInput.trim().equals(targetWord.trim(), ignoreCase = true)
         }
     }
 

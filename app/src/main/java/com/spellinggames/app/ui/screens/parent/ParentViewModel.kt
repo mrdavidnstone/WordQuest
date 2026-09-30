@@ -246,4 +246,13 @@ class ParentViewModel @Inject constructor(
             settings.setOverallDifficulty(difficulty)
         }
     }
+
+    val requireCapitalLetters: StateFlow<Boolean> = settings.requireCapitalLetters
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setRequireCapitalLetters(enabled: Boolean) {
+        viewModelScope.launch {
+            settings.setRequireCapitalLetters(enabled)
+        }
+    }
 }

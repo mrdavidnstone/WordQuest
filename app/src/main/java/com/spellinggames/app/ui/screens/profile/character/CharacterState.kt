@@ -5,6 +5,7 @@ import com.spellinggames.app.data.model.HeroConfiguration
 import com.spellinggames.app.ui.screens.profile.Avatar
 
 data class CharacterState(
+    val gender: String = "Boy",
     val skin: String = "body_01",
     val face: String = "round",
     val eyes: String = "round_brown",
@@ -19,7 +20,7 @@ data class CharacterState(
 ) {
     fun toHeroConfiguration(): HeroConfiguration {
         return HeroConfiguration(
-            gender = Gender.BOY,
+            gender = if (gender.equals("Girl", ignoreCase = true)) Gender.GIRL else Gender.BOY,
             skinTone = if (skin.contains("02")) "skin_02" else "skin_01",
             faceShape = "round",
             eyeStyle = "round",
@@ -36,6 +37,7 @@ data class CharacterState(
 
     companion object {
         val POC_DEFAULT = CharacterState(
+            gender = "Boy",
             skin = "body_01",
             face = "round",
             eyes = "round_brown",
@@ -86,6 +88,7 @@ data class CharacterState(
             }
 
             return CharacterState(
+                gender = if (avatar.gender.equals("Girl", ignoreCase = true)) "Girl" else "Boy",
                 skin = if (avatar.skinColor.contains("02")) "body_02" else "body_01",
                 hair = if (avatar.hairStyle.isBlank()) "hat_hair_spiky_brown" else avatar.hairStyle,
                 hairColor = "brown",
