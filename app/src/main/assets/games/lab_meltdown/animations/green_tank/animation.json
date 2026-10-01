@@ -1,0 +1,61 @@
+{
+ "background": "lab_meltdown_bg.png (851x1849) - default background",
+ "coordinate_space": "pixels of lab_meltdown_bg.png",
+ "sequences": {
+  "tank_unstable": {
+   "frames": 48,
+   "fps": 12,
+   "loop": true,
+   "draw_at_xy": [
+    365,
+    530
+   ],
+   "frame_size": [
+    186,
+    486
+   ],
+   "pattern": "tank_unstable/tank_XX.png"
+  },
+  "tank_settle": {
+   "frames": 24,
+   "fps": 12,
+   "loop": false,
+   "draw_at_xy": [
+    365,
+    530
+   ],
+   "frame_size": [
+    186,
+    486
+   ],
+   "pattern": "tank_settle/tank_XX.png",
+   "note": "plays once; first frame matches unstable frame 0; last frame equals the original purple tank"
+  },
+  "tank_stable_idle": {
+   "frames": 48,
+   "fps": 12,
+   "loop": true,
+   "draw_at_xy": [
+    365,
+    530
+   ],
+   "frame_size": [
+    186,
+    486
+   ],
+   "pattern": "tank_stable_idle/tank_XX.png",
+   "note": "calm purple tank: faint shimmer + a few slow pale bubbles"
+  }
+ },
+ "flow": "tank_unstable (loop) -> crossfade 250ms into tank_settle (once) -> tank_stable_idle (loop). Or after settle just stop drawing: the background shows the same calm purple tank.",
+ "same_box_for_all_sequences": {
+  "draw_at_xy": [
+   365,
+   530
+  ],
+  "frame_size": [
+   186,
+   486
+  ]
+ }
+}

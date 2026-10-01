@@ -1,0 +1,21 @@
+{
+ "background": "lab_meltdown_bg.png (851x1849) - default background",
+ "coordinate_space": "pixels of lab_meltdown_bg.png",
+ "sequences": {
+  "tank_stable_idle": {
+   "frames": 48,
+   "fps": 12,
+   "loop": true,
+   "draw_at_xy": [
+    544,
+    560
+   ],
+   "frame_size": [
+    130,
+    214
+   ],
+   "pattern": "tank_stable_idle/tank_XX.png"
+  }
+ },
+ "note": "Right (purple) tank, stable state. Frames are transparent overlays: they redraw only the liquid inside the glass (shimmer) and the bubbles. The pipe elbow at the lower right of the glass is left untouched."
+}

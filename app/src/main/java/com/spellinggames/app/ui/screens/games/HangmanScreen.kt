@@ -2,6 +2,7 @@ package com.spellinggames.app.ui.screens.games
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import org.json.JSONObject
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -252,6 +253,36 @@ fun HangmanScreen(
         return
     }
 
+    // RANDOM UNSTABLE OBJECT STABILIZATION CONTROLLER
+    var isArmStabilized by remember { mutableStateOf(false) }
+    var isTankStabilized by remember { mutableStateOf(false) }
+
+    // Pick a random unstable object to stabilize on each correct word or victory
+    LaunchedEffect(uiState.isCorrect, uiState.isFinished) {
+        if (uiState.isFinished && uiState.isCorrect == true) {
+            isArmStabilized = true
+            isTankStabilized = true
+        } else if (uiState.isCorrect == true) {
+            val unstableList = mutableListOf<String>()
+            if (!isArmStabilized) unstableList.add("ARM")
+            if (!isTankStabilized) unstableList.add("TANK")
+
+            if (unstableList.isNotEmpty()) {
+                val chosen = unstableList.random()
+                if (chosen == "ARM") isArmStabilized = true
+                if (chosen == "TANK") isTankStabilized = true
+            }
+        }
+    }
+
+    // Reset object stabilization state when a new game round starts
+    LaunchedEffect(uiState.isReady) {
+        if (uiState.isReady && uiState.score == 0 && !uiState.showFeedback) {
+            isArmStabilized = false
+            isTankStabilized = false
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -272,11 +303,18 @@ fun HangmanScreen(
             Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0C1020)))
         }
 
-        // 2. LEFT UNSTABLE ROBOT ARM ANIMATION STATE MACHINE
+        // 2. RIGHT PURPLE TANK ANIMATION (Constant Liquid Shimmer & Translucent Bubbles)
+        RightTankOverlay()
+
+        // 3. LEFT UNSTABLE ROBOT ARM ANIMATION STATE MACHINE
         RobotArmOverlay(
-            isCorrectGuess = uiState.isCorrect,
-            wrongCount = hangmanState.wrongGuesses,
-            isVictory = uiState.isFinished && uiState.isCorrect == true
+            isStabilized = isArmStabilized,
+            wrongCount = hangmanState.wrongGuesses
+        )
+
+        // 4. GREEN UNSTABLE TANK ANIMATION (unstable -> settle -> stable_idle)
+        GreenTankOverlay(
+            isStabilized = isTankStabilized
         )
 
         // 3. ACTIVE LAB CHAOS ANIMATION OVERLAYS (Sparks, Steam, Flashes, Slime)
@@ -870,9 +908,8 @@ enum class RobotArmState {
 
 @Composable
 private fun RobotArmOverlay(
-    isCorrectGuess: Boolean?,
+    isStabilized: Boolean,
     wrongCount: Int,
-    isVictory: Boolean,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -883,18 +920,10 @@ private fun RobotArmOverlay(
 
     val randomOffset = remember { (0..800).random().toLong() }
 
-    // Trigger stabilization on correct guess or victory
-    LaunchedEffect(isCorrectGuess, isVictory, wrongCount) {
-        if (isVictory) {
-            if (armState == RobotArmState.UNSTABLE || armState == RobotArmState.WAITING_TO_SETTLE) {
-                armState = RobotArmState.WAITING_TO_SETTLE
-            }
-        } else if (isCorrectGuess == true) {
-            if (armState == RobotArmState.UNSTABLE) {
-                armState = RobotArmState.WAITING_TO_SETTLE
-            }
-        } else if (isCorrectGuess == false && wrongCount > 0) {
-            // Wrong guess destabilizes arm back to UNSTABLE
+    LaunchedEffect(isStabilized) {
+        if (isStabilized && armState == RobotArmState.UNSTABLE) {
+            armState = RobotArmState.WAITING_TO_SETTLE
+        } else if (!isStabilized) {
             armState = RobotArmState.UNSTABLE
             phaseStart = System.currentTimeMillis()
         }
@@ -977,15 +1006,23 @@ private fun RobotArmOverlay(
         if (sparkPath != null) loadAssetImageBitmap(context, sparkPath) else null
     }
 
-    // Matrix Coordinate Scaling matching 851x1849 Game Canvas
+    val animConfig = remember(context) {
+        LabAnimConfig.load(
+            context,
+            "games/lab_meltdown/animations/left_robot_arm/animation.json",
+            defaultW = 496f, defaultH = 528f, defaultX = -98f, defaultY = 428f
+        )
+    }
+
+    // Matrix Coordinate Scaling matching 851x1849 Game Canvas from animation.json
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val canvasW = this.maxWidth
         val canvasH = this.maxHeight
 
-        val armW = canvasW * (496f / 851f)
-        val armH = canvasH * (528f / 1849f)
-        val armX = canvasW * (-98f / 851f)
-        val armY = canvasH * (428f / 1849f)
+        val armW = canvasW * (animConfig.frameW / animConfig.canvasW)
+        val armH = canvasH * (animConfig.frameH / animConfig.canvasH)
+        val armX = canvasW * (animConfig.drawX / animConfig.canvasW)
+        val armY = canvasH * (animConfig.drawY / animConfig.canvasH)
 
         Box(
             modifier = Modifier
@@ -1007,6 +1044,222 @@ private fun RobotArmOverlay(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )
+            }
+        }
+    }
+}
+
+enum class GreenTankState {
+    UNSTABLE,
+    SETTLING,
+    STABLE_IDLE
+}
+
+@Composable
+private fun GreenTankOverlay(
+    isStabilized: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    var tankState by remember { mutableStateOf(GreenTankState.UNSTABLE) }
+    var phaseStart by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+
+    val randomOffset = remember { (0..4000).random().toLong() }
+
+    LaunchedEffect(isStabilized) {
+        if (isStabilized && tankState == GreenTankState.UNSTABLE) {
+            tankState = GreenTankState.SETTLING
+            phaseStart = System.currentTimeMillis()
+            currentFrameIndex = 0
+        } else if (!isStabilized) {
+            tankState = GreenTankState.UNSTABLE
+            phaseStart = System.currentTimeMillis()
+        }
+    }
+
+    LaunchedEffect(tankState) {
+        while (true) {
+            delay(16L) // ~60fps ticker
+            val now = System.currentTimeMillis()
+
+            when (tankState) {
+                GreenTankState.UNSTABLE -> {
+                    val elapsed = (now - phaseStart) + randomOffset
+                    currentFrameIndex = ((elapsed * 12L) / 1000L).toInt() % 48
+                }
+                GreenTankState.SETTLING -> {
+                    val elapsed = now - phaseStart
+                    val idx = ((elapsed * 12L) / 1000L).toInt()
+                    if (idx >= 24) {
+                        tankState = GreenTankState.STABLE_IDLE
+                        phaseStart = System.currentTimeMillis()
+                        currentFrameIndex = 0
+                    } else {
+                        currentFrameIndex = idx
+                    }
+                }
+                GreenTankState.STABLE_IDLE -> {
+                    val elapsed = now - phaseStart
+                    currentFrameIndex = ((elapsed * 12L) / 1000L).toInt() % 48
+                }
+            }
+        }
+    }
+
+    val formattedFrame = if (currentFrameIndex < 10) "0$currentFrameIndex" else "$currentFrameIndex"
+    val tankPath = when (tankState) {
+        GreenTankState.UNSTABLE -> {
+            "games/lab_meltdown/animations/green_tank/tank_unstable/tank_$formattedFrame.png"
+        }
+        GreenTankState.SETTLING -> {
+            "games/lab_meltdown/animations/green_tank/tank_settle/tank_$formattedFrame.png"
+        }
+        GreenTankState.STABLE_IDLE -> {
+            "games/lab_meltdown/animations/green_tank/tank_stable_idle/tank_$formattedFrame.png"
+        }
+    }
+
+    val tankBitmap = remember(context, tankPath) {
+        loadAssetImageBitmap(context, tankPath)
+    }
+
+    val animConfig = remember(context) {
+        LabAnimConfig.load(
+            context,
+            "games/lab_meltdown/animations/green_tank/animation.json",
+            defaultW = 186f, defaultH = 486f, defaultX = 369f, defaultY = 557f
+        )
+    }
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val canvasW = this.maxWidth
+        val canvasH = this.maxHeight
+
+        val tankW = canvasW * (animConfig.frameW / animConfig.canvasW)
+        val tankH = canvasH * (animConfig.frameH / animConfig.canvasH)
+        val tankX = canvasW * (animConfig.drawX / animConfig.canvasW)
+        val tankY = canvasH * (animConfig.drawY / animConfig.canvasH)
+
+        Box(
+            modifier = Modifier
+                .offset(x = tankX, y = tankY)
+                .size(width = tankW, height = tankH)
+        ) {
+            if (tankBitmap != null) {
+                Image(
+                    bitmap = tankBitmap,
+                    contentDescription = "Green Tank Frame",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RightTankOverlay(
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+    val randomOffset = remember { (0..4000).random().toLong() }
+
+    val animConfig = remember(context) {
+        LabAnimConfig.load(
+            context,
+            "games/lab_meltdown/animations/right_tank/animation.json",
+            defaultW = 130f, defaultH = 214f, defaultX = 544f, defaultY = 588f
+        )
+    }
+
+    // Always-running 48 frames @ 12fps ticker loop
+    LaunchedEffect(Unit) {
+        val startTime = System.currentTimeMillis()
+        while (true) {
+            delay(16L) // ~60fps
+            val now = System.currentTimeMillis()
+            val elapsed = (now - startTime) + randomOffset
+            currentFrameIndex = ((elapsed * 12L) / 1000L).toInt() % 48
+        }
+    }
+
+    val formattedFrame = if (currentFrameIndex < 10) "0$currentFrameIndex" else "$currentFrameIndex"
+    val tankPath = "games/lab_meltdown/animations/right_tank/tank_stable_idle/tank_$formattedFrame.png"
+
+    val tankBitmap = remember(context, tankPath) {
+        loadAssetImageBitmap(context, tankPath)
+    }
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val canvasW = this.maxWidth
+        val canvasH = this.maxHeight
+
+        val tankW = canvasW * (animConfig.frameW / animConfig.canvasW)
+        val tankH = canvasH * (animConfig.frameH / animConfig.canvasH)
+        val tankX = canvasW * (animConfig.drawX / animConfig.canvasW)
+        val tankY = canvasH * (animConfig.drawY / animConfig.canvasH)
+
+        Box(
+            modifier = Modifier
+                .offset(x = tankX, y = tankY)
+                .size(width = tankW, height = tankH)
+        ) {
+            if (tankBitmap != null) {
+                Image(
+                    bitmap = tankBitmap,
+                    contentDescription = "Right Purple Tank Frame",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+    }
+}
+
+data class LabAnimConfig(
+    val canvasW: Float,
+    val canvasH: Float,
+    val frameW: Float,
+    val frameH: Float,
+    val drawX: Float,
+    val drawY: Float
+) {
+    companion object {
+        fun load(context: Context, jsonPath: String, defaultW: Float, defaultH: Float, defaultX: Float, defaultY: Float): LabAnimConfig {
+            return try {
+                context.assets.open(jsonPath).use { stream ->
+                    val jsonStr = stream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(jsonStr)
+
+                    val canvasArr = json.optJSONArray("game_canvas")
+                    val cW = canvasArr?.optDouble(0, 851.0)?.toFloat() ?: 851f
+                    val cH = canvasArr?.optDouble(1, 1849.0)?.toFloat() ?: 1849f
+
+                    val frameArr = json.optJSONArray("frame_size")
+                    val fW = frameArr?.optDouble(0, defaultW.toDouble())?.toFloat() ?: defaultW
+                    val fH = frameArr?.optDouble(1, defaultH.toDouble())?.toFloat() ?: defaultH
+
+                    val drawArr = json.optJSONArray("draw_at_xy")
+                    var dX = drawArr?.optDouble(0, defaultX.toDouble())?.toFloat() ?: defaultX
+                    var dY = drawArr?.optDouble(1, defaultY.toDouble())?.toFloat() ?: defaultY
+
+                    if (dX == defaultX && dY == defaultY) {
+                        val seqObj = json.optJSONObject("sequences")
+                        val firstSeq = seqObj?.keys()?.asSequence()?.firstOrNull()?.let { seqObj.optJSONObject(it) }
+                        val seqDraw = firstSeq?.optJSONArray("draw_at_xy")
+                        if (seqDraw != null) {
+                            dX = seqDraw.optDouble(0, dX.toDouble()).toFloat()
+                            dY = seqDraw.optDouble(1, dY.toDouble()).toFloat()
+                        }
+                    }
+
+                    LabAnimConfig(cW, cH, fW, fH, dX, dY)
+                }
+            } catch (_: Exception) {
+                LabAnimConfig(851f, 1849f, defaultW, defaultH, defaultX, defaultY)
             }
         }
     }
