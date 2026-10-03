@@ -111,7 +111,7 @@ fun HangmanScreen(
 
     LaunchedEffect(uiState.showFeedback) {
         if (uiState.showFeedback) {
-            delay(2500)
+            delay(1200)
             playedEffects.clear()
             viewModel.nextAfterFeedback()
         }
@@ -253,24 +253,88 @@ fun HangmanScreen(
         return
     }
 
-    // RANDOM UNSTABLE OBJECT STABILIZATION CONTROLLER
+    // RANDOM UNSTABLE OBJECT STABILIZATION CONTROLLER (Arm, Green Tank, Alien, Monitor, Spark)
     var isArmStabilized by remember { mutableStateOf(false) }
     var isTankStabilized by remember { mutableStateOf(false) }
+    var isAlienStabilized by remember { mutableStateOf(false) }
+    var isMonitorStabilized by remember { mutableStateOf(false) }
+    var isSparkStabilized by remember { mutableStateOf(false) }
+
+    val maxAllowedMissedWords = when (uiState.overallDifficulty) {
+        1 -> 6 // Easy: Game Over at 6 missed words
+        2 -> 5 // Medium: Game Over at 5 missed words
+        3 -> 4 // Difficult/Hard: Game Over at 4 missed words
+        else -> 6
+    }
+
+    val missedWords = (uiState.total - uiState.score).coerceAtLeast(0)
+    val isGameLost = uiState.isFinished && (uiState.score < 7 || missedWords >= maxAllowedMissedWords)
+
+    // LOSS MELTDOWN TIMELINE CONTROLLER
+    var isUserLosesSequenceActive by remember { mutableStateOf(false) }
+    var isDoorSequenceStable by remember { mutableStateOf(false) }
+    var showResultModal by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isGameLost) {
+        if (isGameLost) {
+            // Step 1: Immediately activate all unstable animations
+            isArmStabilized = false
+            isTankStabilized = false
+            isAlienStabilized = false
+            isMonitorStabilized = false
+            isSparkStabilized = false
+
+            // Step 2: Wait 3 seconds before starting meltdown blast door animation
+            delay(3000L)
+            isUserLosesSequenceActive = true
+        } else {
+            isUserLosesSequenceActive = false
+            isDoorSequenceStable = false
+            showResultModal = false
+        }
+    }
+
+    LaunchedEffect(isDoorSequenceStable) {
+        if (isDoorSequenceStable) {
+            // Step 3: Once blast doors are closed, wait 10 seconds before showing popup modal
+            delay(10000L)
+            showResultModal = true
+        }
+    }
 
     // Pick a random unstable object to stabilize on each correct word or victory
     LaunchedEffect(uiState.isCorrect, uiState.isFinished) {
-        if (uiState.isFinished && uiState.isCorrect == true) {
-            isArmStabilized = true
-            isTankStabilized = true
+        if (uiState.isFinished) {
+            if (uiState.score >= 7) {
+                // Game Won - Stabilize all lab systems!
+                isArmStabilized = true
+                isTankStabilized = true
+                isAlienStabilized = true
+                isMonitorStabilized = true
+                isSparkStabilized = true
+            } else {
+                // Game Lost - Activate Full Meltdown Mode on all lab systems!
+                isArmStabilized = false
+                isTankStabilized = false
+                isAlienStabilized = false
+                isMonitorStabilized = false
+                isSparkStabilized = false
+            }
         } else if (uiState.isCorrect == true) {
             val unstableList = mutableListOf<String>()
             if (!isArmStabilized) unstableList.add("ARM")
             if (!isTankStabilized) unstableList.add("TANK")
+            if (!isAlienStabilized) unstableList.add("ALIEN")
+            if (!isMonitorStabilized) unstableList.add("MONITOR")
+            if (!isSparkStabilized) unstableList.add("SPARK")
 
             if (unstableList.isNotEmpty()) {
                 val chosen = unstableList.random()
                 if (chosen == "ARM") isArmStabilized = true
                 if (chosen == "TANK") isTankStabilized = true
+                if (chosen == "ALIEN") isAlienStabilized = true
+                if (chosen == "MONITOR") isMonitorStabilized = true
+                if (chosen == "SPARK") isSparkStabilized = true
             }
         }
     }
@@ -280,6 +344,12 @@ fun HangmanScreen(
         if (uiState.isReady && uiState.score == 0 && !uiState.showFeedback) {
             isArmStabilized = false
             isTankStabilized = false
+            isAlienStabilized = false
+            isMonitorStabilized = false
+            isSparkStabilized = false
+            isUserLosesSequenceActive = false
+            isDoorSequenceStable = false
+            showResultModal = false
         }
     }
 
@@ -317,11 +387,44 @@ fun HangmanScreen(
             isStabilized = isTankStabilized
         )
 
-        // 3. ACTIVE LAB CHAOS ANIMATION OVERLAYS (Sparks, Steam, Flashes, Slime)
-        LabChaosOverlay(effect = activeEffect, wrongCount = hangmanState.wrongGuesses)
+        // 5. CUTE ALIEN MASCOT ANIMATION (unstable story loop -> settle -> stable_idle)
+        AlienOverlay(
+            isStabilized = isAlienStabilized
+        )
+
+        // 6. LAB MONITOR SCREEN ANIMATION (glitch warning -> settle -> system online)
+        MonitorOverlay(
+            isStabilized = isMonitorStabilized
+        )
+
+        // 7. CONSOLE SPARK BURST ANIMATION OVERLAYS
+        SparkOverlay(
+            isStabilized = isSparkStabilized
+        )
+
+        // 8. ACTIVE LAB CHAOS OVERLAYS (Flashes, Steam, Slime)
+        LabChaosOverlay(
+            effect = if (isGameLost) LabChaosEffect.ALARM_FLASH else activeEffect,
+            wrongCount = if (isGameLost) 6 else hangmanState.wrongGuesses,
+            isSparkStabilized = isSparkStabilized
+        )
+
+        // Status Stepping Image Number (7.png -> 6.png -> ... -> 1.png stepping down on correct words; 7 on loss, 1 on win)
+        val currentStatusNum = when {
+            isGameLost -> 7
+            uiState.score >= 7 -> 1
+            else -> (7 - uiState.score).coerceIn(1, 7)
+        }
+        val statusPath = "games/lab_meltdown/statuses/$currentStatusNum.png"
+        val statusBitmap = remember(context, statusPath) {
+            loadAssetImageBitmap(context, statusPath)
+        }
+
+        // 8. LAB STATUS OVERLAY DIRECTLY ON TOP OF THE BACKGROUND IMAGE
+        StatusOverlay(statusNum = currentStatusNum)
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // 3. COMBINED TOP BAR: Back Arrow + Mistakes & Stability Bar
+            // COMBINED TOP BAR: Back Arrow + Status Stepping Bar + Win/Miss Progress Counters
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -340,69 +443,106 @@ fun HangmanScreen(
                     )
                 }
 
+                // CRITICAL REACTOR STATUS & MISTAKES HEADER BAR (Matching Concept Art)
                 Surface(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF0F172A).copy(alpha = 0.88f),
-                    border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.5f))
+                    shape = RoundedCornerShape(18.dp),
+                    color = Color(0xFF0F172A).copy(alpha = 0.92f),
+                    border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.6f))
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Mistakes Counter
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "Mistakes",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "${hangmanState.wrongGuesses}/6",
-                                color = if (hangmanState.wrongGuesses >= 5) Color(0xFFEF4444) else Color(0xFF22C55E),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(if (hangmanState.wrongGuesses >= 5) Color(0xFFEF4444) else Color(0xFF22C55E))
-                            )
-                        }
+                        // LEFT SIDE: Misses in current word (0/maxMisses rounded boxes in warning neon red)
+                        val maxMisses = hangmanState.maxWrong
+                        val currentMisses = hangmanState.wrongGuesses.coerceIn(0, maxMisses)
 
-                        // Stability Bar
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "Stability",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                val maxSegments = 6
-                                val remainingSegments = (maxSegments - hangmanState.wrongGuesses).coerceIn(0, maxSegments)
-                                for (i in 1..maxSegments) {
-                                    val isFilled = i <= remainingSegments
-                                    val segmentColor = when {
-                                        !isFilled -> Color(0xFF334155)
-                                        remainingSegments <= 2 -> Color(0xFFEF4444)
-                                        remainingSegments <= 4 -> Color(0xFFF59E0B)
-                                        else -> Color(0xFF22C55E)
-                                    }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Column {
+                                Text(
+                                    "Misses",
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "$currentMisses/$maxMisses",
+                                    color = if (currentMisses >= maxMisses - 1) Color(0xFFEF4444) else Color(0xFF22C55E),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+
+                            // Dynamic Rounded Rectangular Segments based on Difficulty (6 for Easy, 4 for Medium, 3 for Hard)
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                for (i in 1..maxMisses) {
+                                    val isFilled = i <= currentMisses
+                                    val boxColor = if (isFilled) Color(0xFFEF4444) else Color(0xFF1E293B)
+                                    val borderColor = if (isFilled) Color(0xFFF87171) else Color(0xFF334155)
+
                                     Box(
                                         modifier = Modifier
-                                            .width(12.dp)
-                                            .height(12.dp)
+                                            .width(9.dp)
+                                            .height(16.dp)
                                             .clip(RoundedCornerShape(3.dp))
-                                            .background(segmentColor)
+                                            .background(boxColor)
+                                            .border(1.dp, borderColor, RoundedCornerShape(3.dp))
+                                    )
+                                }
+                            }
+                        }
+
+                        // VERTICAL DIVIDER SEPARATOR
+                        Box(
+                            modifier = Modifier
+                                .width(1.dp)
+                                .height(26.dp)
+                                .background(Color.White.copy(alpha = 0.15f))
+                        )
+
+                        // RIGHT SIDE: Stability Bar (0/7 to 7/7 rounded boxes in glowing neon green)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    "Stability",
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                val currentStability = uiState.score.coerceIn(0, 7)
+                                Text(
+                                    "$currentStability/7",
+                                    color = if (currentStability >= 7) Color(0xFF22C55E) else if (currentStability <= 2) Color(0xFFEF4444) else Color(0xFF22C55E),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+
+                            // Exactly 7 Rounded Rectangular Segments for Stability (Glowing Neon Green)
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                val currentStability = uiState.score.coerceIn(0, 7)
+                                for (i in 1..7) {
+                                    val isFilled = i <= currentStability
+                                    val boxColor = if (isFilled) Color(0xFF22C55E) else Color(0xFF1E293B)
+                                    val borderColor = if (isFilled) Color(0xFF4ADE80) else Color(0xFF334155)
+
+                                    Box(
+                                        modifier = Modifier
+                                            .width(10.dp)
+                                            .height(16.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(boxColor)
+                                            .border(1.dp, borderColor, RoundedCornerShape(3.dp))
                                     )
                                 }
                             }
@@ -410,7 +550,6 @@ fun HangmanScreen(
                     }
                 }
             }
-
             Spacer(Modifier.height(4.dp))
 
             // 5. MAIN PLAY AREA (Top: Horizontally Centered Letter Blanks; Bottom-Left: Larger Hero Character)
@@ -649,11 +788,17 @@ fun HangmanScreen(
                     }
                 }
             }
+        }
 
-            // Status Overlays
-            if (uiState.isFinished) {
-                ResultOverlay(uiState, onRetry = { viewModel.startGame() }, onBack = onBack)
-            }
+        // 9. USER LOSES MELTDOWN ANIMATION (ON TOP OF EVERYTHING: Hero, Keyboard, Header, Scene)
+        UserLosesOverlay(
+            isLossActive = isUserLosesSequenceActive,
+            onAnimationComplete = { isDoorSequenceStable = true }
+        )
+
+        // 10. GAME OVER RESULT MODAL OVERLAY (ON TOP OF USER LOSES BLAST DOORS)
+        if (uiState.isFinished && (uiState.score >= 7 || showResultModal)) {
+            ResultOverlay(uiState, onRetry = { viewModel.startGame() }, onBack = onBack)
         }
     }
 }
@@ -761,20 +906,26 @@ private fun LabKeyTile(
 }
 
 @Composable
-private fun LabChaosOverlay(effect: LabChaosEffect?, wrongCount: Int) {
+private fun LabChaosOverlay(
+    effect: LabChaosEffect?,
+    wrongCount: Int,
+    isSparkStabilized: Boolean = false
+) {
     val context = LocalContext.current
     val sparkBitmap = remember(context) {
         loadAssetImageBitmap(context, "games/lab_meltdown/animations/spark.png")
     }
 
-    val isSparkActive = effect in listOf(
-        LabChaosEffect.CONSOLE_SPARKS,
-        LabChaosEffect.POWER_SURGE,
-        LabChaosEffect.ROBOT_ARM_GLITCH,
-        LabChaosEffect.ALARM_FLASH
-    ) || wrongCount >= 4
+    val isSparkActive = (!isSparkStabilized) && (
+        effect in listOf(
+            LabChaosEffect.CONSOLE_SPARKS,
+            LabChaosEffect.POWER_SURGE,
+            LabChaosEffect.ROBOT_ARM_GLITCH,
+            LabChaosEffect.ALARM_FLASH
+        ) || wrongCount >= 4
+    )
 
-    if (effect == null && wrongCount < 4) return
+    if (effect == null && wrongCount < 4 && !isSparkActive) return
 
     val infiniteAnim = rememberInfiniteTransition(label = "chaos")
     val alphaAnim by infiniteAnim.animateFloat(
@@ -1219,6 +1370,421 @@ private fun RightTankOverlay(
     }
 }
 
+enum class AlienState {
+    UNSTABLE,
+    SETTLING,
+    STABLE_IDLE
+}
+
+@Composable
+private fun AlienOverlay(
+    isStabilized: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    var alienState by remember { mutableStateOf(AlienState.UNSTABLE) }
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+    val randomOffset = remember { (0..3000).random().toLong() }
+
+    LaunchedEffect(isStabilized) {
+        if (isStabilized && alienState == AlienState.UNSTABLE) {
+            alienState = AlienState.SETTLING
+        } else if (!isStabilized) {
+            alienState = AlienState.UNSTABLE
+        }
+    }
+
+    LaunchedEffect(alienState) {
+        val startTime = System.currentTimeMillis()
+        while (true) {
+            delay(16L) // ~60fps ticker
+            val now = System.currentTimeMillis()
+
+            when (alienState) {
+                AlienState.UNSTABLE -> {
+                    // Cycles through all 40 story frames (0-39) @ 10fps loop
+                    val elapsed = (now - startTime) + randomOffset
+                    currentFrameIndex = ((elapsed * 10L) / 1000L).toInt() % 40
+                }
+                AlienState.SETTLING -> {
+                    // Plays settling frames (38-39) once then goes to STABLE_IDLE
+                    val elapsed = now - startTime
+                    val idx = 38 + ((elapsed * 10L) / 1000L).toInt()
+                    if (idx >= 40) {
+                        alienState = AlienState.STABLE_IDLE
+                        currentFrameIndex = 0
+                    } else {
+                        currentFrameIndex = idx
+                    }
+                }
+                AlienState.STABLE_IDLE -> {
+                    // Cycles gentle happy idle frames (0-4) @ 8fps loop
+                    val elapsed = now - startTime
+                    currentFrameIndex = ((elapsed * 8L) / 1000L).toInt() % 5
+                }
+            }
+        }
+    }
+
+    val formattedFrame = if (currentFrameIndex < 10) "0$currentFrameIndex" else "$currentFrameIndex"
+    val alienPath = "games/lab_meltdown/animations/alien/frames/alien_$formattedFrame.png"
+
+    val alienBitmap = remember(context, alienPath) {
+        loadAssetImageBitmap(context, alienPath)
+    }
+
+    val animConfig = remember(context) {
+        LabAnimConfig.load(
+            context,
+            "games/lab_meltdown/animations/alien/animation.json",
+            defaultW = 340f, defaultH = 380f, defaultX = 525f, defaultY = 785f
+        )
+    }
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val canvasW = this.maxWidth
+        val canvasH = this.maxHeight
+
+        val alienW = canvasW * (animConfig.frameW / animConfig.canvasW)
+        val alienH = canvasH * (animConfig.frameH / animConfig.canvasH)
+        val alienX = canvasW * (animConfig.drawX / animConfig.canvasW)
+        val alienY = canvasH * (animConfig.drawY / animConfig.canvasH)
+
+        Box(
+            modifier = Modifier
+                .offset(x = alienX, y = alienY)
+                .size(width = alienW, height = alienH)
+        ) {
+            if (alienBitmap != null) {
+                Image(
+                    bitmap = alienBitmap,
+                    contentDescription = "Alien Mascot Frame",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SparkOverlay(
+    isStabilized: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (isStabilized) return
+
+    val context = LocalContext.current
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+    val randomOffset = remember { (0..2000).random().toLong() }
+
+    LaunchedEffect(Unit) {
+        val startTime = System.currentTimeMillis()
+        while (true) {
+            delay(16L) // ~60fps ticker
+            val now = System.currentTimeMillis()
+            val elapsed = (now - startTime) + randomOffset
+            currentFrameIndex = ((elapsed * 24L) / 1000L).toInt() % 24
+        }
+    }
+
+    val formattedFrame = if (currentFrameIndex < 10) "0$currentFrameIndex" else "$currentFrameIndex"
+    val sparkPath = "games/lab_meltdown/animations/spark/spark_burst/spark_$formattedFrame.png"
+
+    val sparkBitmap = remember(context, sparkPath) {
+        loadAssetImageBitmap(context, sparkPath)
+    }
+
+    val animConfig = remember(context) {
+        LabAnimConfig.load(
+            context,
+            "games/lab_meltdown/animations/spark/animation.json",
+            defaultW = 280f, defaultH = 260f, defaultX = 500f, defaultY = 685f
+        )
+    }
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val canvasW = this.maxWidth
+        val canvasH = this.maxHeight
+
+        val sparkW = canvasW * (animConfig.frameW / animConfig.canvasW)
+        val sparkH = canvasH * (animConfig.frameH / animConfig.canvasH)
+        val sparkX = canvasW * (animConfig.drawX / animConfig.canvasW)
+        val sparkY = canvasH * (animConfig.drawY / animConfig.canvasH)
+
+        Box(
+            modifier = Modifier
+                .offset(x = sparkX, y = sparkY)
+                .size(width = sparkW, height = sparkH)
+        ) {
+            if (sparkBitmap != null) {
+                Image(
+                    bitmap = sparkBitmap,
+                    contentDescription = "Console Spark Frame",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+    }
+}
+
+enum class MonitorState {
+    UNSTABLE,
+    SETTLING,
+    STABLE_IDLE
+}
+
+@Composable
+private fun MonitorOverlay(
+    isStabilized: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    var monitorState by remember { mutableStateOf(MonitorState.UNSTABLE) }
+    var phaseStart by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+
+    val randomOffset = remember { (0..3000).random().toLong() }
+
+    LaunchedEffect(isStabilized) {
+        if (isStabilized && monitorState == MonitorState.UNSTABLE) {
+            monitorState = MonitorState.SETTLING
+            phaseStart = System.currentTimeMillis()
+            currentFrameIndex = 0
+        } else if (!isStabilized) {
+            monitorState = MonitorState.UNSTABLE
+            phaseStart = System.currentTimeMillis()
+        }
+    }
+
+    LaunchedEffect(monitorState) {
+        while (true) {
+            delay(16L) // ~60fps ticker
+            val now = System.currentTimeMillis()
+
+            when (monitorState) {
+                MonitorState.UNSTABLE -> {
+                    val elapsed = (now - phaseStart) + randomOffset
+                    currentFrameIndex = ((elapsed * 8L) / 1000L).toInt() % 24
+                }
+                MonitorState.SETTLING -> {
+                    val elapsed = now - phaseStart
+                    val idx = ((elapsed * 12L) / 1000L).toInt()
+                    if (idx >= 12) {
+                        monitorState = MonitorState.STABLE_IDLE
+                        phaseStart = System.currentTimeMillis()
+                        currentFrameIndex = 0
+                    } else {
+                        currentFrameIndex = idx
+                    }
+                }
+                MonitorState.STABLE_IDLE -> {
+                    val elapsed = now - phaseStart
+                    currentFrameIndex = ((elapsed * 8L) / 1000L).toInt() % 24
+                }
+            }
+        }
+    }
+
+    val formattedFrame = if (currentFrameIndex < 10) "0$currentFrameIndex" else "$currentFrameIndex"
+    val monitorPath = when (monitorState) {
+        MonitorState.UNSTABLE -> {
+            "games/lab_meltdown/animations/monitor/monitor_unstable/monitor_$formattedFrame.png"
+        }
+        MonitorState.SETTLING -> {
+            "games/lab_meltdown/animations/monitor/monitor_settle/monitor_$formattedFrame.png"
+        }
+        MonitorState.STABLE_IDLE -> {
+            "games/lab_meltdown/animations/monitor/monitor_stable_idle/monitor_$formattedFrame.png"
+        }
+    }
+
+    val monitorBitmap = remember(context, monitorPath) {
+        loadAssetImageBitmap(context, monitorPath)
+    }
+
+    val animConfig = remember(context) {
+        LabAnimConfig.load(
+            context,
+            "games/lab_meltdown/animations/monitor/animation.json",
+            defaultW = 180f, defaultH = 150f, defaultX = 0f, defaultY = 320f
+        )
+    }
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val canvasW = this.maxWidth
+        val canvasH = this.maxHeight
+
+        val monW = canvasW * (animConfig.frameW / animConfig.canvasW)
+        val monH = canvasH * (animConfig.frameH / animConfig.canvasH)
+        val monX = canvasW * (animConfig.drawX / animConfig.canvasW)
+        val monY = canvasH * (animConfig.drawY / animConfig.canvasH)
+
+        Box(
+            modifier = Modifier
+                .offset(x = monX, y = monY)
+                .size(width = monW, height = monH)
+        ) {
+            if (monitorBitmap != null) {
+                Image(
+                    bitmap = monitorBitmap,
+                    contentDescription = "Lab Monitor Frame",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserLosesOverlay(
+    isLossActive: Boolean,
+    onAnimationComplete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (!isLossActive) return
+
+    val context = LocalContext.current
+
+    var animPhase by remember { mutableIntStateOf(1) }
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val fpsMs = 1000L / 15L
+
+        // Phase 1: Slime Drip (30 frames @ 15fps)
+        animPhase = 1
+        for (i in 0 until 30) {
+            currentFrameIndex = i
+            delay(fpsMs)
+        }
+
+        // Phase 2: Doors Close (18 frames @ 15fps)
+        animPhase = 2
+        for (i in 0 until 18) {
+            currentFrameIndex = i
+            delay(fpsMs)
+        }
+
+        // Phase 3: Shut Hazard Loop (24 frames @ 15fps loop)
+        animPhase = 3
+        onAnimationComplete()
+
+        var loopIdx = 0
+        while (true) {
+            currentFrameIndex = loopIdx
+            delay(fpsMs)
+            loopIdx = (loopIdx + 1) % 24
+        }
+    }
+
+    val leftOffsets = listOf(-343f, -343f, -343f, -343f, -341f, -333f, -322f, -305f, -283f, -257f, -226f, -191f, -150f, -105f, -55f, 0f, -10f, 0f)
+    val rightOffsets = listOf(330f, 330f, 330f, 330f, 328f, 321f, 309f, 293f, 273f, 248f, 218f, 183f, 144f, 101f, 53f, 0f, 10f, 0f)
+    val frameAlphas = listOf(0.25f, 0.5f, 0.8f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f)
+
+    val slimeIdx = if (animPhase == 1) currentFrameIndex else 29
+    val formattedSlime = if (slimeIdx < 10) "00$slimeIdx" else if (slimeIdx < 100) "0$slimeIdx" else "$slimeIdx"
+    val slimePath = "games/lab_meltdown/animations/user_loses/slime/slime_$formattedSlime.png"
+
+    val hazardIdx = if (animPhase == 3) currentFrameIndex else 0
+    val formattedHazard = if (hazardIdx < 10) "0$hazardIdx" else "$hazardIdx"
+    val hazardPath = "games/lab_meltdown/animations/user_loses/hazard/hazard_$formattedHazard.png"
+
+    val slimeBitmap = remember(context, slimePath) { if (animPhase <= 2) loadAssetImageBitmap(context, slimePath) else null }
+    val frameBitmap = remember(context) { loadAssetImageBitmap(context, "games/lab_meltdown/animations/user_loses/door/door_frame_static.png") }
+    val doorLeftBitmap = remember(context) { loadAssetImageBitmap(context, "games/lab_meltdown/animations/user_loses/door/door_left.png") }
+    val doorRightBitmap = remember(context) { loadAssetImageBitmap(context, "games/lab_meltdown/animations/user_loses/door/door_right.png") }
+    val hazardBitmap = remember(context, hazardPath) { if (animPhase == 3) loadAssetImageBitmap(context, hazardPath) else null }
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val canvasW = this.maxWidth
+        val canvasH = this.maxHeight
+
+        // 1. SLIME LAYER
+        if (animPhase <= 2 && slimeBitmap != null) {
+            Image(
+                bitmap = slimeBitmap,
+                contentDescription = "Slime Drip",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        // 2. BLAST DOORS & FRAME
+        if (animPhase >= 2) {
+            val frameIdx = currentFrameIndex.coerceIn(0, 17)
+            val currentAlpha = if (animPhase == 2) frameAlphas[frameIdx] else 1.0f
+            val leftOffX = if (animPhase == 2) leftOffsets[frameIdx] else 0f
+            val rightOffX = if (animPhase == 2) rightOffsets[frameIdx] else 0f
+
+            val leftX = canvasW * ((88f + leftOffX) / 851f)
+            val rightX = canvasW * ((433f + rightOffX) / 851f)
+            val doorY = canvasH * (176f / 1849f)
+            val leftW = canvasW * (343f / 851f)
+            val rightW = canvasW * (330f / 851f)
+            val doorH = canvasH * (1479f / 1849f)
+
+            // Left Door Leaf
+            if (doorLeftBitmap != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = leftX, y = doorY)
+                        .size(width = leftW, height = doorH)
+                ) {
+                    Image(
+                        bitmap = doorLeftBitmap,
+                        contentDescription = "Left Blast Door",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+
+            // Right Door Leaf
+            if (doorRightBitmap != null) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = rightX, y = doorY)
+                        .size(width = rightW, height = doorH)
+                ) {
+                    Image(
+                        bitmap = doorRightBitmap,
+                        contentDescription = "Right Blast Door",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+
+            // Static Door Frame
+            if (frameBitmap != null) {
+                Image(
+                    bitmap = frameBitmap,
+                    contentDescription = "Door Frame",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { this.alpha = currentAlpha },
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+
+        // 3. HAZARD WARNING LIGHT FLASHES
+        if (animPhase == 3 && hazardBitmap != null) {
+            Image(
+                bitmap = hazardBitmap,
+                contentDescription = "Hazard Light Flashes",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
 data class LabAnimConfig(
     val canvasW: Float,
     val canvasH: Float,
@@ -1256,6 +1822,18 @@ data class LabAnimConfig(
                         }
                     }
 
+                    // Parse placement_in_concept_art if present (as in alien/animation.json)
+                    val conceptObj = json.optJSONObject("placement_in_concept_art")
+                    if (conceptObj != null) {
+                        val xyArr = conceptObj.optJSONArray("frame_top_left_xy")
+                        if (xyArr != null) {
+                            val origX = xyArr.optDouble(0, 484.0).toFloat()
+                            val origY = xyArr.optDouble(1, 600.0).toFloat()
+                            dX = origX * (cW / 784f)
+                            dY = origY * (cH / 1168f)
+                        }
+                    }
+
                     LabAnimConfig(cW, cH, fW, fH, dX, dY)
                 }
             } catch (_: Exception) {
@@ -1271,6 +1849,9 @@ private fun ResultOverlay(
     onRetry: () -> Unit,
     onBack: () -> Unit
 ) {
+    val missedWords = (uiState.total - uiState.score).coerceAtLeast(0)
+    val isGameWon = uiState.score >= 7
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1282,36 +1863,43 @@ private fun ResultOverlay(
             modifier = Modifier
                 .padding(28.dp)
                 .background(Color(0xFF0F172A), RoundedCornerShape(24.dp))
-                .border(BorderStroke(2.dp, if (uiState.isCorrect == true) Color(0xFF22C55E) else Color(0xFFEF4444)), RoundedCornerShape(24.dp))
+                .border(BorderStroke(2.dp, if (isGameWon) Color(0xFF22C55E) else Color(0xFFEF4444)), RoundedCornerShape(24.dp))
                 .padding(24.dp)
         ) {
             Text(
-                if (uiState.isCorrect == true) "🧪 LAB STABILIZED! 🧪" else "💥 LAB MELTDOWN! 💥",
+                if (isGameWon) "🧪 LAB STABILIZED! 🧪" else "💥 LAB MELTDOWN! 💥",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Black,
-                color = if (uiState.isCorrect == true) Color(0xFF22C55E) else Color(0xFFEF4444),
+                color = if (isGameWon) Color(0xFF22C55E) else Color(0xFFEF4444),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                if (isGameWon) "Awesome job! You reached Status 1!" else "The lab suffered a critical meltdown! Status 7 Activated!",
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center
             )
 
             Spacer(Modifier.height(16.dp))
 
-            Text("The word was:", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.8f))
-            Text(
-                uiState.currentWord?.text?.uppercase() ?: "",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
-                color = Color(0xFFA855F7)
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("Words Correct: ${uiState.score}/7", fontWeight = FontWeight.Bold, color = Color(0xFF22C55E), fontSize = 14.sp)
+                Text("Missed Words: $missedWords/3", fontWeight = FontWeight.Bold, color = Color(0xFFEF4444), fontSize = 14.sp)
+            }
 
             Spacer(Modifier.height(24.dp))
 
+            // RESTART NEW GAME PROMPT BUTTON
             Button(
                 onClick = onRetry,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFA855F7))
             ) {
-                Text("Play Next Word", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                Text("🔄 RESTART NEW GAME", fontWeight = FontWeight.Black, fontSize = 16.sp, color = Color.White)
             }
 
             Spacer(Modifier.height(12.dp))
@@ -1329,10 +1917,14 @@ private fun ResultOverlay(
 }
 
 private fun loadAssetImageBitmap(context: Context, assetName: String): ImageBitmap? {
-    val pathsToTry = listOf(
-        "games/lab_meltdown/$assetName",
-        assetName
-    )
+    val pathsToTry = if (assetName.startsWith("games/")) {
+        listOf(assetName, assetName.removePrefix("games/lab_meltdown/"))
+    } else {
+        listOf(
+            "games/lab_meltdown/$assetName",
+            assetName
+        )
+    }
     for (path in pathsToTry) {
         try {
             context.assets.open(path).use { stream ->
@@ -1341,4 +1933,43 @@ private fun loadAssetImageBitmap(context: Context, assetName: String): ImageBitm
         } catch (_: Exception) {}
     }
     return null
+}
+
+@Composable
+private fun StatusOverlay(
+    statusNum: Int,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val statusPath = "games/lab_meltdown/statuses/$statusNum.png"
+    val statusBitmap = remember(context, statusPath) {
+        loadAssetImageBitmap(context, statusPath)
+    }
+
+    if (statusBitmap == null) return
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val canvasW = this.maxWidth
+        val canvasH = this.maxHeight
+
+        // Position status image directly overlayed near top-center of the lab scene
+        val statusW = canvasW * 0.65f
+        val statusH = canvasH * 0.08f
+        val statusX = (canvasW - statusW) / 2f
+        val statusY = canvasH * 0.08f
+
+        Box(
+            modifier = Modifier
+                .offset(x = statusX, y = statusY)
+                .size(width = statusW, height = statusH),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                bitmap = statusBitmap,
+                contentDescription = "Lab Status $statusNum Overlay",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        }
+    }
 }

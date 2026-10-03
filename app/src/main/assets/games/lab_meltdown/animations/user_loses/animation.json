@@ -1,0 +1,223 @@
+{
+  "name": "lab_meltdown_gameover",
+  "version": 2,
+  "description": "Game-over sequence drawn over the game screen: slime drips down from the ceiling to about halfway, lab doors slam shut, then the doors stay shut while the hazard light keeps flashing. Everything is 851x1849 (same as lab_meltdown_bg.png).",
+  "width": 851,
+  "height": 1849,
+  "fps": 15,
+  "pixel_format": "PNG RGBA, straight alpha",
+  "layer_order_bottom_to_top": [
+    "game_screen",
+    "slime",
+    "door_left",
+    "door_right",
+    "door_frame_static",
+    "hazard"
+  ],
+  "layers": {
+    "slime": {
+      "files": [
+        "slime/slime_000.png",
+        "slime/slime_001.png",
+        "slime/slime_002.png",
+        "slime/slime_003.png",
+        "slime/slime_004.png",
+        "slime/slime_005.png",
+        "slime/slime_006.png",
+        "slime/slime_007.png",
+        "slime/slime_008.png",
+        "slime/slime_009.png",
+        "slime/slime_010.png",
+        "slime/slime_011.png",
+        "slime/slime_012.png",
+        "slime/slime_013.png",
+        "slime/slime_014.png",
+        "slime/slime_015.png",
+        "slime/slime_016.png",
+        "slime/slime_017.png",
+        "slime/slime_018.png",
+        "slime/slime_019.png",
+        "slime/slime_020.png",
+        "slime/slime_021.png",
+        "slime/slime_022.png",
+        "slime/slime_023.png",
+        "slime/slime_024.png",
+        "slime/slime_025.png",
+        "slime/slime_026.png",
+        "slime/slime_027.png",
+        "slime/slime_028.png",
+        "slime/slime_029.png"
+      ],
+      "x": 0,
+      "y": 0,
+      "note": "semi-transparent; hold the last frame while the doors close, then hide it once the doors are shut"
+    },
+    "door_frame_static": {
+      "file": "door/door_frame_static.png",
+      "x": 0,
+      "y": 0,
+      "note": "wall, pipes, red lamp (unlit), frame and floor. Transparent where the door leaves are, so the game shows through while the doors are open. Draw above the door leaves."
+    },
+    "door_left": {
+      "file": "door/door_left.png",
+      "closed_x": 88,
+      "y": 176,
+      "width": 343,
+      "height": 1479,
+      "slides_from": "left"
+    },
+    "door_right": {
+      "file": "door/door_right.png",
+      "closed_x": 433,
+      "y": 176,
+      "width": 330,
+      "height": 1479,
+      "slides_from": "right"
+    },
+    "hazard": {
+      "files": [
+        "hazard/hazard_00.png",
+        "hazard/hazard_01.png",
+        "hazard/hazard_02.png",
+        "hazard/hazard_03.png",
+        "hazard/hazard_04.png",
+        "hazard/hazard_05.png",
+        "hazard/hazard_06.png",
+        "hazard/hazard_07.png",
+        "hazard/hazard_08.png",
+        "hazard/hazard_09.png",
+        "hazard/hazard_10.png",
+        "hazard/hazard_11.png",
+        "hazard/hazard_12.png",
+        "hazard/hazard_13.png",
+        "hazard/hazard_14.png",
+        "hazard/hazard_15.png",
+        "hazard/hazard_16.png",
+        "hazard/hazard_17.png",
+        "hazard/hazard_18.png",
+        "hazard/hazard_19.png",
+        "hazard/hazard_20.png",
+        "hazard/hazard_21.png",
+        "hazard/hazard_22.png",
+        "hazard/hazard_23.png"
+      ],
+      "x": 0,
+      "y": 0,
+      "note": "red lamp flash, rotating light beams and glow; draw on top of everything"
+    }
+  },
+  "display_area": {
+    "x": 191,
+    "y": 408,
+    "width": 473,
+    "height": 981,
+    "note": "Inside the neon-purple frame on the closed doors. Put your buttons and text here; it is a dark solid panel and the hazard light never draws over it. Leave roughly 24 px padding inside."
+  },
+  "phases": [
+    {
+      "name": "slime_drip",
+      "frames": 30,
+      "loop": false,
+      "layers": {
+        "slime": {
+          "frame_from": 0,
+          "frame_to": 29
+        }
+      }
+    },
+    {
+      "name": "doors_close",
+      "frames": 18,
+      "loop": false,
+      "hold": {
+        "slime": 29
+      },
+      "per_frame": {
+        "door_frame_static_alpha": [
+          0.25,
+          0.5,
+          0.8,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "door_left_offset_x": [
+          -343,
+          -343,
+          -343,
+          -343,
+          -341,
+          -333,
+          -322,
+          -305,
+          -283,
+          -257,
+          -226,
+          -191,
+          -150,
+          -105,
+          -55,
+          0,
+          -10,
+          0
+        ],
+        "door_right_offset_x": [
+          330,
+          330,
+          330,
+          330,
+          328,
+          321,
+          309,
+          293,
+          273,
+          248,
+          218,
+          183,
+          144,
+          101,
+          53,
+          0,
+          10,
+          0
+        ],
+        "door_leaves_visible_from_frame": 4
+      },
+      "note": "offset_x is added to each leaf's closed_x. Leaves are hidden behind the static frame when open. Last frame = fully shut."
+    },
+    {
+      "name": "shut_hazard_loop",
+      "frames": 24,
+      "loop": true,
+      "layers": {
+        "door_frame_static": {
+          "alpha": 1.0
+        },
+        "door_left": {
+          "offset_x": 0
+        },
+        "door_right": {
+          "offset_x": 0
+        },
+        "hazard": {
+          "frame_from": 0,
+          "frame_to": 23
+        }
+      },
+      "note": "Slime layer hidden. Repeat until the screen is dismissed."
+    }
+  ],
+  "durations_ms_per_frame": 67
+}

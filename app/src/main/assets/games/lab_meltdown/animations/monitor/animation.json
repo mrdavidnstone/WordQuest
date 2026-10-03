@@ -1,0 +1,63 @@
+{
+  "background": "lab_meltdown_bg.png (851x1849) - provided lab screen/background",
+  "coordinate_space": "pixels of lab_meltdown_bg.png",
+  "sequences": {
+    "monitor_unstable": {
+      "frames": 24,
+      "fps": 8,
+      "loop": true,
+      "draw_at_xy": [
+        0,
+        320
+      ],
+      "frame_size": [
+        180,
+        150
+      ],
+      "pattern": "monitor_unstable/monitor_XX.png",
+      "note": "Loop while the spelling puzzle is unresolved; glitch bars and error text are clipped to the monitor glass."
+    },
+    "monitor_settle": {
+      "frames": 12,
+      "fps": 12,
+      "loop": false,
+      "draw_at_xy": [
+        0,
+        320
+      ],
+      "frame_size": [
+        180,
+        150
+      ],
+      "pattern": "monitor_settle/monitor_XX.png",
+      "note": "Play once after a correct spelling answer, then switch to monitor_stable_idle."
+    },
+    "monitor_stable_idle": {
+      "frames": 24,
+      "fps": 8,
+      "loop": true,
+      "draw_at_xy": [
+        0,
+        320
+      ],
+      "frame_size": [
+        180,
+        150
+      ],
+      "pattern": "monitor_stable_idle/monitor_XX.png",
+      "note": "Calm green SYSTEM ONLINE display; loop after the transition."
+    }
+  },
+  "flow": "monitor_unstable (loop) -> monitor_settle (once) -> monitor_stable_idle (loop).",
+  "same_box_for_all_sequences": {
+    "draw_at_xy": [
+      0,
+      320
+    ],
+    "frame_size": [
+      180,
+      150
+    ]
+  },
+  "implementation_note": "Overlay PNGs have transparent backgrounds. Composite them over the supplied background at draw_at_xy; frame_size is [width, height]."
+}

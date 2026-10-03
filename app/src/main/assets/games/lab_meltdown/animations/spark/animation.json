@@ -1,0 +1,21 @@
+{
+ "game_canvas": [851, 1849],
+ "frame_size": [280, 260],
+ "draw_at_xy": [643, 621],
+ "draw_order": [
+  "lab_meltdown_bg.png (your plain background, untouched)",
+  "spark frames"
+ ],
+ "sequences": {
+  "spark_burst": {
+   "frames": 24,
+   "fps": 24,
+   "loop": true,
+   "spark_pattern": "spark_burst/spark_XX.png",
+   "notes": "Same real spark artwork cut from your concept art, made more prominent: ~35% larger base scale, a higher opacity floor so it never fades to nothing between flickers, brightness/saturation boosted, and a glow that follows the art's own shape (so it stays aligned instead of floating separately)."
+  }
+ },
+ "static": {
+  "console_idle.png": "Single calm frame (no spark) for the stable/no-fault state."
+ }
+}

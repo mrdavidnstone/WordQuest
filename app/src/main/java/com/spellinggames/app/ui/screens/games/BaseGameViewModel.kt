@@ -37,8 +37,8 @@ abstract class BaseGameViewModel(
     protected val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
 
-    private var activeListId: Long? = null
-    private val usedWordIds = mutableSetOf<Long>()
+    protected var activeListId: Long? = null
+    protected val usedWordIds = mutableSetOf<Long>()
     private var consecutiveCorrect = 0
 
     init {
@@ -189,7 +189,18 @@ abstract class BaseGameViewModel(
     }
 
     fun nextAfterFeedback() {
-        if (_uiState.value.total >= 10) {
+        val score = _uiState.value.score
+        val total = _uiState.value.total
+        val missed = total - score
+
+        val maxAllowedMissedWords = when (_uiState.value.overallDifficulty) {
+            1 -> 6 // Easy: 6 missed words
+            2 -> 5 // Medium: 5 missed words
+            3 -> 4 // Hard: 4 missed words
+            else -> 6
+        }
+
+        if (score >= 7 || missed >= maxAllowedMissedWords || total >= 10) {
             finishGame()
         } else {
             loadNextWord()

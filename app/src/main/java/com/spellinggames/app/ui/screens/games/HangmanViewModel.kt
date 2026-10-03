@@ -35,12 +35,19 @@ class HangmanViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             uiState.collect { state ->
-                val newMaxWrong = 6 
+                val newMaxWrong = when (state.overallDifficulty) {
+                    1 -> 8 // Easy: 8 misses
+                    2 -> 6 // Medium: 6 misses
+                    3 -> 5 // Difficult: 5 misses
+                    else -> 8
+                }
                 _hangmanState.update { it.copy(maxWrong = newMaxWrong, overallDifficulty = state.overallDifficulty) }
 
-                if (state.currentWord != null && state.currentWord.text.lowercase() != _hangmanState.value.maskedWord.replace(" ", "").lowercase()) {
-                    if (!state.showFeedback && !state.isFinished) {
-                        resetHangmanForNewWord(state.currentWord.text, state.listName ?: "Spelling")
+                val currentWordText = state.currentWord?.text
+                if (!currentWordText.isNullOrBlank() && !state.showFeedback && !state.isFinished) {
+                    val currentMasked = _hangmanState.value.maskedWord
+                    if (currentMasked.isBlank() || _hangmanState.value.guessedLetters.isNotEmpty() && !currentMasked.contains('_')) {
+                        resetHangmanForNewWord(currentWordText, state.listName ?: "Spelling")
                     }
                 }
                 
@@ -51,14 +58,80 @@ class HangmanViewModel @Inject constructor(
         }
     }
 
+    override fun startGame() {
+        if (!_uiState.value.hasWords) return
+        usedWordIds.clear()
+        _uiState.update { 
+            it.copy(
+                isReady = true,
+                score = 0,
+                total = 0,
+                isFinished = false,
+                showFeedback = false
+            ) 
+        }
+        loadNextWord()
+    }
+
+    override fun loadNextWord() {
+        val listId = activeListId ?: return
+        viewModelScope.launch {
+            val word = repository.getNextWord(listId, usedWordIds)
+            if (word == null) {
+                if (usedWordIds.isNotEmpty()) {
+                    usedWordIds.clear()
+                    val retry = repository.getNextWord(listId)
+                    if (retry != null) {
+                        usedWordIds.add(retry.id)
+                        resetHangmanForNewWord(retry.text, uiState.value.listName ?: "Spelling")
+                        _uiState.update {
+                            it.copy(
+                                currentWord = retry,
+                                showFeedback = false,
+                                feedback = null,
+                                isCorrect = null
+                            )
+                        }
+                    } else {
+                        _uiState.update { it.copy(hasWords = false) }
+                    }
+                } else {
+                    _uiState.update { it.copy(hasWords = false) }
+                }
+            } else {
+                usedWordIds.add(word.id)
+                resetHangmanForNewWord(word.text, uiState.value.listName ?: "Spelling")
+                _uiState.update {
+                    it.copy(
+                        currentWord = word,
+                        showFeedback = false,
+                        feedback = null,
+                        isCorrect = null
+                    )
+                }
+            }
+        }
+    }
+
     private fun resetHangmanForNewWord(word: String, listName: String) {
         val initialMasked = word.map { char ->
             if (char == ' ') ' ' else '_'
         }.joinToString("")
 
+        val maxWrong = when (uiState.value.overallDifficulty) {
+            1 -> 8 // Easy: 8 misses
+            2 -> 6 // Medium: 6 misses
+            3 -> 5 // Difficult: 5 misses
+            else -> 8
+        }
+
         _hangmanState.value = HangmanUiState(
+            guessedLetters = emptySet(),
+            wrongGuesses = 0,
+            maxWrong = maxWrong,
             maskedWord = initialMasked,
-            category = listName
+            category = listName,
+            overallDifficulty = uiState.value.overallDifficulty
         )
     }
 

@@ -1,5 +1,7 @@
 package com.spellinggames.app.ui.navigation
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -193,6 +195,20 @@ fun AppNavHost() {
                 when (gameId) {
                     "hangman" -> HangmanScreen(onBack = { navController.popBackStack() })
                     "missing_letters" -> MissingLettersScreen(onBack = { navController.popBackStack() })
+                    "word_gallery" -> {
+                        val context = LocalContext.current
+                        WordGalleryInfoScreen(
+                            onBack = {
+                                (context as? Activity)?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                navController.popBackStack()
+                            },
+                            onLaunchAttraction = { attractionId ->
+                                if (attractionId == "pirate_blaster") {
+                                    navController.navigate("pirate_blaster")
+                                }
+                            }
+                        )
+                    }
                     "scrambled" -> ScrambledWordScreen(onBack = { navController.popBackStack() })
                     "listen_spell" -> ListenSpellScreen(onBack = { navController.popBackStack() })
                     "which_correct" -> WhichCorrectScreen(onBack = { navController.popBackStack() })
@@ -201,6 +217,9 @@ fun AppNavHost() {
                         navController.popBackStack()
                     }
                 }
+            }
+            composable("pirate_blaster") {
+                PirateBlasterScreen(onBack = { navController.popBackStack() })
             }
         }
     }

@@ -33,6 +33,7 @@ val allGames = listOf(
     GameInfo("listen_spell", "Listen & Spell", "🎧", "Spell the word you hear", Color(0xFF00B0FF), "Spelling"),
     GameInfo("hangman", "Lab Meltdown", "🧪", "Prevent the lab meltdown!", Color(0xFF9333EA), "Spelling", iconAsset = "games/lab_meltdown/lab_meltdown_icon.png"),
     GameInfo("missing_letters", "Missing Letters", "🔤", "Fill in the blanks", Color(0xFF00E676), "Spelling"),
+    GameInfo("word_gallery", "Word Gallery", "🖼️", "Restore the missing exhibit letters!", Color(0xFFEC4899), "Spelling", iconAsset = "games/word_gallery/word_gallery_icon.png"),
     GameInfo("scrambled", "Scrambled Word", "🔀", "Unscramble the letters", Color(0xFFFF6D00), "Spelling"),
     GameInfo("which_correct", "Which is Correct?", "✅", "Pick the right spelling", Color(0xFFD500F9), "Spelling"),
     GameInfo("challenge", "Ultimate Challenge", "🏆", "Master everything!", Color(0xFF1E88E5), "Vocabulary")
@@ -60,12 +61,6 @@ fun GamesMenuScreen(
                 color = Color.White
             )
             Spacer(Modifier.height(16.dp))
-            ActiveListBadge(
-                listName = activeListName,
-                allLists = allLists,
-                onListSelected = { viewModel.switchList(it) }
-            )
-            Spacer(Modifier.height(24.dp))
 
             if (!hasWords) {
                 EmptyState(
