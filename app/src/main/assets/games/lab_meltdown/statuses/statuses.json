@@ -1,0 +1,17 @@
+{
+  "background": "lab_meltdown_bg.png (851x1849) - default background",
+  "coordinate_space": "pixels of lab_meltdown_bg.png",
+  "game_canvas": [
+    851,
+    1849
+  ],
+  "draw_at_xy": [
+    225,
+    120
+  ],
+  "frame_size": [
+    400,
+    70
+  ],
+  "note": "Statuses 7.png down to 1.png are drawn at draw_at_xy. Edit draw_at_xy [x, y] or frame_size [width, height] here to reposition or resize the status image over the lab background screen."
+}

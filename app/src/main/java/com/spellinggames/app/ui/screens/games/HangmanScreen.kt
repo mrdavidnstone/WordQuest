@@ -253,12 +253,13 @@ fun HangmanScreen(
         return
     }
 
-    // RANDOM UNSTABLE OBJECT STABILIZATION CONTROLLER (Arm, Green Tank, Alien, Monitor, Spark)
+    // RANDOM UNSTABLE OBJECT STABILIZATION CONTROLLER (Arm, Green Tank, Alien, Monitor, Spark, Steam Pipe)
     var isArmStabilized by remember { mutableStateOf(false) }
     var isTankStabilized by remember { mutableStateOf(false) }
     var isAlienStabilized by remember { mutableStateOf(false) }
     var isMonitorStabilized by remember { mutableStateOf(false) }
     var isSparkStabilized by remember { mutableStateOf(false) }
+    var isSteamPipeStabilized by remember { mutableStateOf(false) }
 
     val maxAllowedMissedWords = when (uiState.overallDifficulty) {
         1 -> 6 // Easy: Game Over at 6 missed words
@@ -283,6 +284,7 @@ fun HangmanScreen(
             isAlienStabilized = false
             isMonitorStabilized = false
             isSparkStabilized = false
+            isSteamPipeStabilized = false
 
             // Step 2: Wait 3 seconds before starting meltdown blast door animation
             delay(3000L)
@@ -296,8 +298,8 @@ fun HangmanScreen(
 
     LaunchedEffect(isDoorSequenceStable) {
         if (isDoorSequenceStable) {
-            // Step 3: Once blast doors are closed, wait 10 seconds before showing popup modal
-            delay(10000L)
+            // Step 3: Once blast doors are closed, wait 8 seconds before showing popup modal
+            delay(8000L)
             showResultModal = true
         }
     }
@@ -312,6 +314,7 @@ fun HangmanScreen(
                 isAlienStabilized = true
                 isMonitorStabilized = true
                 isSparkStabilized = true
+                isSteamPipeStabilized = true
             } else {
                 // Game Lost - Activate Full Meltdown Mode on all lab systems!
                 isArmStabilized = false
@@ -319,6 +322,7 @@ fun HangmanScreen(
                 isAlienStabilized = false
                 isMonitorStabilized = false
                 isSparkStabilized = false
+                isSteamPipeStabilized = false
             }
         } else if (uiState.isCorrect == true) {
             val unstableList = mutableListOf<String>()
@@ -327,6 +331,7 @@ fun HangmanScreen(
             if (!isAlienStabilized) unstableList.add("ALIEN")
             if (!isMonitorStabilized) unstableList.add("MONITOR")
             if (!isSparkStabilized) unstableList.add("SPARK")
+            if (!isSteamPipeStabilized) unstableList.add("STEAM_PIPE")
 
             if (unstableList.isNotEmpty()) {
                 val chosen = unstableList.random()
@@ -335,18 +340,20 @@ fun HangmanScreen(
                 if (chosen == "ALIEN") isAlienStabilized = true
                 if (chosen == "MONITOR") isMonitorStabilized = true
                 if (chosen == "SPARK") isSparkStabilized = true
+                if (chosen == "STEAM_PIPE") isSteamPipeStabilized = true
             }
         }
     }
 
     // Reset object stabilization state when a new game round starts
-    LaunchedEffect(uiState.isReady) {
-        if (uiState.isReady && uiState.score == 0 && !uiState.showFeedback) {
+    LaunchedEffect(uiState.isFinished, uiState.score, uiState.total) {
+        if (!uiState.isFinished && uiState.score == 0 && uiState.total == 0) {
             isArmStabilized = false
             isTankStabilized = false
             isAlienStabilized = false
             isMonitorStabilized = false
             isSparkStabilized = false
+            isSteamPipeStabilized = false
             isUserLosesSequenceActive = false
             isDoorSequenceStable = false
             showResultModal = false
@@ -400,6 +407,11 @@ fun HangmanScreen(
         // 7. CONSOLE SPARK BURST ANIMATION OVERLAYS
         SparkOverlay(
             isStabilized = isSparkStabilized
+        )
+
+        // 8. STEAM PIPE ANIMATION (unstable leak -> settle -> stable_idle)
+        SteamPipeOverlay(
+            isStabilized = isSteamPipeStabilized
         )
 
         // 8. ACTIVE LAB CHAOS OVERLAYS (Flashes, Steam, Slime)
@@ -603,6 +615,7 @@ fun HangmanScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .graphicsLayer { alpha = if (isUserLosesSequenceActive) 0f else 1f }
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
                 color = Color(0xFF1E1B4B).copy(alpha = 0.95f),
                 border = BorderStroke(1.5.dp, Color(0xFFA855F7).copy(alpha = 0.6f))
@@ -798,7 +811,22 @@ fun HangmanScreen(
 
         // 10. GAME OVER RESULT MODAL OVERLAY (ON TOP OF USER LOSES BLAST DOORS)
         if (uiState.isFinished && (uiState.score >= 7 || showResultModal)) {
-            ResultOverlay(uiState, onRetry = { viewModel.startGame() }, onBack = onBack)
+            ResultOverlay(
+                uiState = uiState,
+                onRetry = {
+                    isArmStabilized = false
+                    isTankStabilized = false
+                    isAlienStabilized = false
+                    isMonitorStabilized = false
+                    isSparkStabilized = false
+                    isSteamPipeStabilized = false
+                    isUserLosesSequenceActive = false
+                    isDoorSequenceStable = false
+                    showResultModal = false
+                    viewModel.startGame()
+                },
+                onBack = onBack
+            )
         }
     }
 }
@@ -1530,6 +1558,125 @@ private fun SparkOverlay(
     }
 }
 
+enum class SteamPipeState {
+    UNSTABLE,
+    SETTLING,
+    STABLE_IDLE
+}
+
+@Composable
+private fun SteamPipeOverlay(
+    isStabilized: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    var pipeState by remember { mutableStateOf(SteamPipeState.UNSTABLE) }
+    var phaseStart by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+
+    val randomOffset = remember { (0..2000).random().toLong() }
+
+    LaunchedEffect(isStabilized) {
+        if (isStabilized && pipeState == SteamPipeState.UNSTABLE) {
+            pipeState = SteamPipeState.SETTLING
+            phaseStart = System.currentTimeMillis()
+            currentFrameIndex = 0
+        } else if (!isStabilized) {
+            pipeState = SteamPipeState.UNSTABLE
+            phaseStart = System.currentTimeMillis()
+        }
+    }
+
+    LaunchedEffect(pipeState) {
+        while (true) {
+            delay(16L) // ~60fps ticker
+            val now = System.currentTimeMillis()
+
+            when (pipeState) {
+                SteamPipeState.UNSTABLE -> {
+                    // 20 frames @ 10fps loop
+                    val elapsed = (now - phaseStart) + randomOffset
+                    currentFrameIndex = ((elapsed * 10L) / 1000L).toInt() % 20
+                }
+                SteamPipeState.SETTLING -> {
+                    // 24 frames @ 8fps ONCE
+                    val elapsed = now - phaseStart
+                    val idx = ((elapsed * 8L) / 1000L).toInt()
+                    if (idx >= 24) {
+                        pipeState = SteamPipeState.STABLE_IDLE
+                        phaseStart = System.currentTimeMillis()
+                        currentFrameIndex = 0
+                    } else {
+                        currentFrameIndex = idx
+                    }
+                }
+                SteamPipeState.STABLE_IDLE -> {
+                    // 2 frames @ 1fps loop
+                    val elapsed = now - phaseStart
+                    currentFrameIndex = ((elapsed * 1L) / 1000L).toInt() % 2
+                }
+            }
+        }
+    }
+
+    if (pipeState == SteamPipeState.STABLE_IDLE) return
+
+    val formattedFrame = if (currentFrameIndex < 10) "0$currentFrameIndex" else "$currentFrameIndex"
+    val pipePath = when (pipeState) {
+        SteamPipeState.UNSTABLE -> {
+            "games/lab_meltdown/animations/steam_pipe/unstable/steam_$formattedFrame.png"
+        }
+        SteamPipeState.SETTLING -> {
+            "games/lab_meltdown/animations/steam_pipe/settle/steam_$formattedFrame.png"
+        }
+        SteamPipeState.STABLE_IDLE -> {
+            "games/lab_meltdown/animations/steam_pipe/stable_idle/steam_$formattedFrame.png"
+        }
+    }
+
+    val pipeBitmap = remember(context, pipePath) {
+        loadAssetImageBitmap(context, pipePath)
+    }
+
+    val animConfig = remember(context) {
+        LabAnimConfig.load(
+            context,
+            "games/lab_meltdown/animations/steam_pipe/animation.json",
+            defaultW = 851f, defaultH = 1849f, defaultX = 0f, defaultY = 0f
+        )
+    }
+
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val screenW = this.maxWidth
+        val screenH = this.maxHeight
+
+        val scale = maxOf(screenW.value / animConfig.canvasW, screenH.value / animConfig.canvasH)
+        val offsetX = (screenW.value - animConfig.canvasW * scale) / 2f
+        val offsetY = (screenH.value - animConfig.canvasH * scale) / 2f
+
+        val pipeW = (animConfig.frameW * scale).dp
+        val pipeH = (animConfig.frameH * scale).dp
+        val pipeX = (offsetX + animConfig.drawX * scale).dp
+        val pipeY = (offsetY + animConfig.drawY * scale).dp
+
+        Box(
+            modifier = Modifier
+                .offset(x = pipeX, y = pipeY)
+                .size(width = pipeW, height = pipeH)
+        ) {
+            if (pipeBitmap != null) {
+                Image(
+                    bitmap = pipeBitmap,
+                    contentDescription = "Steam Pipe Frame",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.FillBounds
+                )
+            }
+        }
+    }
+}
+
 enum class MonitorState {
     UNSTABLE,
     SETTLING,
@@ -1633,7 +1780,7 @@ private fun MonitorOverlay(
                     bitmap = monitorBitmap,
                     contentDescription = "Lab Monitor Frame",
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.FillBounds
                 )
             }
         }
@@ -1701,16 +1848,23 @@ private fun UserLosesOverlay(
     val hazardBitmap = remember(context, hazardPath) { if (animPhase == 3) loadAssetImageBitmap(context, hazardPath) else null }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val canvasW = this.maxWidth
-        val canvasH = this.maxHeight
+        val screenW = this.maxWidth
+        val screenH = this.maxHeight
+
+        // Uniform ContentScale.Crop transformation matrix matching lab_meltdown_bg.png exactly
+        val scale = maxOf(screenW.value / 851f, screenH.value / 1849f)
+        val offsetX = (screenW.value - 851f * scale) / 2f
+        val offsetY = (screenH.value - 1849f * scale) / 2f
 
         // 1. SLIME LAYER
         if (animPhase <= 2 && slimeBitmap != null) {
             Image(
                 bitmap = slimeBitmap,
                 contentDescription = "Slime Drip",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                modifier = Modifier
+                    .offset(x = offsetX.dp, y = offsetY.dp)
+                    .size(width = (851f * scale).dp, height = (1849f * scale).dp),
+                contentScale = ContentScale.FillBounds
             )
         }
 
@@ -1721,14 +1875,14 @@ private fun UserLosesOverlay(
             val leftOffX = if (animPhase == 2) leftOffsets[frameIdx] else 0f
             val rightOffX = if (animPhase == 2) rightOffsets[frameIdx] else 0f
 
-            val leftX = canvasW * ((88f + leftOffX) / 851f)
-            val rightX = canvasW * ((433f + rightOffX) / 851f)
-            val doorY = canvasH * (176f / 1849f)
-            val leftW = canvasW * (343f / 851f)
-            val rightW = canvasW * (330f / 851f)
-            val doorH = canvasH * (1479f / 1849f)
+            val leftX = (offsetX + (88f + leftOffX) * scale).dp
+            val rightX = (offsetX + (433f + rightOffX) * scale).dp
+            val doorY = (offsetY + 176f * scale).dp
+            val leftW = (343f * scale).dp
+            val rightW = (330f * scale).dp
+            val doorH = (1479f * scale).dp
 
-            // Left Door Leaf
+            // Left Blast Door Leaf
             if (doorLeftBitmap != null) {
                 Box(
                     modifier = Modifier
@@ -1739,12 +1893,12 @@ private fun UserLosesOverlay(
                         bitmap = doorLeftBitmap,
                         contentDescription = "Left Blast Door",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
+                        contentScale = ContentScale.FillBounds
                     )
                 }
             }
 
-            // Right Door Leaf
+            // Right Blast Door Leaf
             if (doorRightBitmap != null) {
                 Box(
                     modifier = Modifier
@@ -1755,7 +1909,7 @@ private fun UserLosesOverlay(
                         bitmap = doorRightBitmap,
                         contentDescription = "Right Blast Door",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
+                        contentScale = ContentScale.FillBounds
                     )
                 }
             }
@@ -1766,9 +1920,10 @@ private fun UserLosesOverlay(
                     bitmap = frameBitmap,
                     contentDescription = "Door Frame",
                     modifier = Modifier
-                        .fillMaxSize()
+                        .offset(x = offsetX.dp, y = offsetY.dp)
+                        .size(width = (851f * scale).dp, height = (1849f * scale).dp)
                         .graphicsLayer { this.alpha = currentAlpha },
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.FillBounds
                 )
             }
         }
@@ -1778,8 +1933,10 @@ private fun UserLosesOverlay(
             Image(
                 bitmap = hazardBitmap,
                 contentDescription = "Hazard Light Flashes",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                modifier = Modifier
+                    .offset(x = offsetX.dp, y = offsetY.dp)
+                    .size(width = (851f * scale).dp, height = (1849f * scale).dp),
+                contentScale = ContentScale.FillBounds
             )
         }
     }
@@ -1804,21 +1961,51 @@ data class LabAnimConfig(
                     val cW = canvasArr?.optDouble(0, 851.0)?.toFloat() ?: 851f
                     val cH = canvasArr?.optDouble(1, 1849.0)?.toFloat() ?: 1849f
 
-                    val frameArr = json.optJSONArray("frame_size")
-                    val fW = frameArr?.optDouble(0, defaultW.toDouble())?.toFloat() ?: defaultW
-                    val fH = frameArr?.optDouble(1, defaultH.toDouble())?.toFloat() ?: defaultH
+                    // Parse frame_size from root, same_box_for_all_sequences, or sequences
+                    var fW = defaultW
+                    var fH = defaultH
+                    val rootFrame = json.optJSONArray("frame_size")
+                    if (rootFrame != null) {
+                        fW = rootFrame.optDouble(0, defaultW.toDouble()).toFloat()
+                        fH = rootFrame.optDouble(1, defaultH.toDouble()).toFloat()
+                    } else {
+                        val sameBox = json.optJSONObject("same_box_for_all_sequences")
+                        val sameFrame = sameBox?.optJSONArray("frame_size")
+                        if (sameFrame != null) {
+                            fW = sameFrame.optDouble(0, defaultW.toDouble()).toFloat()
+                            fH = sameFrame.optDouble(1, defaultH.toDouble()).toFloat()
+                        } else {
+                            val seqObj = json.optJSONObject("sequences")
+                            val firstSeq = seqObj?.keys()?.asSequence()?.firstOrNull()?.let { seqObj.optJSONObject(it) }
+                            val seqFrame = firstSeq?.optJSONArray("frame_size")
+                            if (seqFrame != null) {
+                                fW = seqFrame.optDouble(0, defaultW.toDouble()).toFloat()
+                                fH = seqFrame.optDouble(1, defaultH.toDouble()).toFloat()
+                            }
+                        }
+                    }
 
-                    val drawArr = json.optJSONArray("draw_at_xy")
-                    var dX = drawArr?.optDouble(0, defaultX.toDouble())?.toFloat() ?: defaultX
-                    var dY = drawArr?.optDouble(1, defaultY.toDouble())?.toFloat() ?: defaultY
-
-                    if (dX == defaultX && dY == defaultY) {
-                        val seqObj = json.optJSONObject("sequences")
-                        val firstSeq = seqObj?.keys()?.asSequence()?.firstOrNull()?.let { seqObj.optJSONObject(it) }
-                        val seqDraw = firstSeq?.optJSONArray("draw_at_xy")
-                        if (seqDraw != null) {
-                            dX = seqDraw.optDouble(0, dX.toDouble()).toFloat()
-                            dY = seqDraw.optDouble(1, dY.toDouble()).toFloat()
+                    // Parse draw_at_xy from root, same_box_for_all_sequences, or sequences
+                    var dX = defaultX
+                    var dY = defaultY
+                    val rootDraw = json.optJSONArray("draw_at_xy")
+                    if (rootDraw != null) {
+                        dX = rootDraw.optDouble(0, defaultX.toDouble()).toFloat()
+                        dY = rootDraw.optDouble(1, defaultY.toDouble()).toFloat()
+                    } else {
+                        val sameBox = json.optJSONObject("same_box_for_all_sequences")
+                        val sameDraw = sameBox?.optJSONArray("draw_at_xy")
+                        if (sameDraw != null) {
+                            dX = sameDraw.optDouble(0, defaultX.toDouble()).toFloat()
+                            dY = sameDraw.optDouble(1, defaultY.toDouble()).toFloat()
+                        } else {
+                            val seqObj = json.optJSONObject("sequences")
+                            val firstSeq = seqObj?.keys()?.asSequence()?.firstOrNull()?.let { seqObj.optJSONObject(it) }
+                            val seqDraw = firstSeq?.optJSONArray("draw_at_xy")
+                            if (seqDraw != null) {
+                                dX = seqDraw.optDouble(0, defaultX.toDouble()).toFloat()
+                                dY = seqDraw.optDouble(1, defaultY.toDouble()).toFloat()
+                            }
                         }
                     }
 
@@ -1867,7 +2054,7 @@ private fun ResultOverlay(
                 .padding(24.dp)
         ) {
             Text(
-                if (isGameWon) "🧪 LAB STABILIZED! 🧪" else "💥 LAB MELTDOWN! 💥",
+                if (isGameWon) "🧪 STABILIZED! 🧪" else "💥 GAME OVER! 💥",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Black,
                 color = if (isGameWon) Color(0xFF22C55E) else Color(0xFFEF4444),
@@ -1877,7 +2064,7 @@ private fun ResultOverlay(
             Spacer(Modifier.height(12.dp))
 
             Text(
-                if (isGameWon) "Awesome job! You reached Status 1!" else "The lab suffered a critical meltdown! Status 7 Activated!",
+                if (isGameWon) "Great job!" else "The lab suffered a critical meltdown!",
                 fontSize = 13.sp,
                 color = Color.White.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center
@@ -1886,8 +2073,8 @@ private fun ResultOverlay(
             Spacer(Modifier.height(16.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Words Correct: ${uiState.score}/7", fontWeight = FontWeight.Bold, color = Color(0xFF22C55E), fontSize = 14.sp)
-                Text("Missed Words: $missedWords/3", fontWeight = FontWeight.Bold, color = Color(0xFFEF4444), fontSize = 14.sp)
+                Text("Correct: ${uiState.score}/7", fontWeight = FontWeight.Bold, color = Color(0xFF22C55E), fontSize = 14.sp)
+                Text("Missed: $missedWords/3", fontWeight = FontWeight.Bold, color = Color(0xFFEF4444), fontSize = 14.sp)
             }
 
             Spacer(Modifier.height(24.dp))
@@ -1946,17 +2133,28 @@ private fun StatusOverlay(
         loadAssetImageBitmap(context, statusPath)
     }
 
+    val animConfig = remember(context) {
+        LabAnimConfig.load(
+            context,
+            "games/lab_meltdown/statuses/statuses.json",
+            defaultW = 400f, defaultH = 70f, defaultX = 225f, defaultY = 120f
+        )
+    }
+
     if (statusBitmap == null) return
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val canvasW = this.maxWidth
-        val canvasH = this.maxHeight
+        val screenW = this.maxWidth
+        val screenH = this.maxHeight
 
-        // Position status image directly overlayed near top-center of the lab scene
-        val statusW = canvasW * 0.65f
-        val statusH = canvasH * 0.08f
-        val statusX = (canvasW - statusW) / 2f
-        val statusY = canvasH * 0.08f
+        val scale = maxOf(screenW.value / animConfig.canvasW, screenH.value / animConfig.canvasH)
+        val offsetX = (screenW.value - animConfig.canvasW * scale) / 2f
+        val offsetY = (screenH.value - animConfig.canvasH * scale) / 2f
+
+        val statusW = (animConfig.frameW * scale).dp
+        val statusH = (animConfig.frameH * scale).dp
+        val statusX = (offsetX + animConfig.drawX * scale).dp
+        val statusY = (offsetY + animConfig.drawY * scale).dp
 
         Box(
             modifier = Modifier
@@ -1968,7 +2166,7 @@ private fun StatusOverlay(
                 bitmap = statusBitmap,
                 contentDescription = "Lab Status $statusNum Overlay",
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
+                contentScale = ContentScale.FillBounds
             )
         }
     }

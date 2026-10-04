@@ -1,63 +1,62 @@
 {
   "background": "lab_meltdown_bg.png (851x1849) - provided lab screen/background",
   "coordinate_space": "pixels of lab_meltdown_bg.png",
+  "same_box_for_all_sequences": {
+    "draw_at_xy": [
+      -5,
+      315
+    ],
+    "frame_size": [
+      160,
+      182
+    ]
+  },
   "sequences": {
     "monitor_unstable": {
       "frames": 24,
-      "fps": 8,
+      "fps": 12,
       "loop": true,
       "draw_at_xy": [
-        0,
-        320
+        -5,
+        315
       ],
       "frame_size": [
-        180,
-        150
+        160,
+      182
       ],
       "pattern": "monitor_unstable/monitor_XX.png",
-      "note": "Loop while the spelling puzzle is unresolved; glitch bars and error text are clipped to the monitor glass."
+      "note": "Glitchy EXPERIMENT IN PROGRESS + flask icon. Loop while the spelling puzzle is unresolved."
     },
     "monitor_settle": {
       "frames": 12,
       "fps": 12,
       "loop": false,
       "draw_at_xy": [
-        0,
-        320
+        -5,
+        315
       ],
       "frame_size": [
-        180,
-        150
+        160,
+      182
       ],
       "pattern": "monitor_settle/monitor_XX.png",
-      "note": "Play once after a correct spelling answer, then switch to monitor_stable_idle."
+      "note": "Play once after a correct spelling answer: the glitches die down and the sign locks in."
     },
     "monitor_stable_idle": {
       "frames": 24,
       "fps": 8,
       "loop": true,
       "draw_at_xy": [
-        0,
-        320
+        -5,
+        315
       ],
       "frame_size": [
-        180,
-        150
+        160,
+      182
       ],
       "pattern": "monitor_stable_idle/monitor_XX.png",
-      "note": "Calm green SYSTEM ONLINE display; loop after the transition."
+      "note": "Calm, steady sign with a slow glow pulse and a soft shine sweep."
     }
   },
-  "flow": "monitor_unstable (loop) -> monitor_settle (once) -> monitor_stable_idle (loop).",
-  "same_box_for_all_sequences": {
-    "draw_at_xy": [
-      0,
-      320
-    ],
-    "frame_size": [
-      180,
-      150
-    ]
-  },
-  "implementation_note": "Overlay PNGs have transparent backgrounds. Composite them over the supplied background at draw_at_xy; frame_size is [width, height]."
+  "flow": "monitor_unstable (loop) -> monitor_settle (once) -> monitor_stable_idle (loop)."
 }

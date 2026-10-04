@@ -1,0 +1,33 @@
+{
+ "game_canvas": [851, 1849],
+ "frame_size": [851, 1849],
+ "draw_at_xy": [0, 0],
+ "draw_order": [
+  "lab_meltdown_bg.png (your plain background, untouched)",
+  "steam frame (full canvas, transparent except the active steam area)"
+ ],
+ "sequences": {
+  "stable_idle": {
+   "frames": 2,
+   "fps": 1,
+   "loop": true,
+   "steam_pattern": "stable_idle/steam_XX.png",
+   "notes": "Fully transparent - no steam. Pipe looks exactly like the plain background."
+  },
+  "unstable": {
+   "frames": 24,
+   "fps": 10,
+   "loop": true,
+   "steam_pattern": "unstable/steam_XX.png",
+   "notes": "Realistic textured steam, revised per feedback: every puff now runs through an SVG turbulence/displacement filter for ragged, irregular edges (not smooth blobs), uses elongated upward-streaking wisp shapes instead of round puffs, varies opacity per-wisp, and mixes warm-white (near the leak) and cool-grey (further out) tones for depth. Loop-seam fix: every puff plays exactly one cycle per loop at a staggered start, and frames are sampled from the animation's SECOND cycle rather than the first, avoiding a one-time startup artifact that caused a visible pop at the wrap. Verified seamless (wrap-frame pixel difference is in line with every other frame transition, not a spike)."
+  },
+  "settle": {
+   "frames": 24,
+   "fps": 8,
+   "loop": false,
+   "steam_pattern": "settle/steam_XX.png",
+   "notes": "One-shot transition from unstable back to stable_idle using the same realistic texture treatment. New puffs stop spawning partway through and shrink/quicken as the leak dies down; ends effectively fully transparent (negligible trace, imperceptible), matching stable_idle for a clean hand-off."
+  }
+ },
+ "suggested_flow": "Hold stable_idle during calm play. On a fault trigger, switch to unstable (looping). When resolved, play settle once, then return to stable_idle."
+}
