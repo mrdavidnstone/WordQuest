@@ -43,7 +43,7 @@ data class GalleryAttraction(
 val galleryAttractions = listOf(
     GalleryAttraction(
         id = "pirate_blaster",
-        title = "Pirate Word Blaster",
+        title = "Pirate Blaster",
         emoji = "🏴‍☠️",
         color = Color(0xFFD97706),
         isPlayable = true,

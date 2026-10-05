@@ -1,3 +1,17 @@
+# SOFTWARE CREDITS & LICENSING
+Some software used were generated using AI tools
+GROK
+ChatGPT
+Claude
+Gemini
+
+# IMAGE CREDITS & LICENSING
+All images / animations used were generated using AI tools
+GROK
+ChatGPT
+Claude
+
+
 # MUSIC CREDITS & LICENSING
 
 ## Main Theme
@@ -36,3 +50,11 @@
 * **Blue Beat (Loop)** — ERH (submitted by qubodup)
   License: CC BY 3.0
   https://opengameart.org/content/bluebeat-01-loop-cyberpunk-lab-music
+  
+---
+
+## Pirate Word Blaster
+
+**Track:** The Last Encounter Collection.zip
+**Artist:** Matthew Pablo
+**Source:** https://opengameart.org/content/rpg-battle-theme-the-last-encounter-0

@@ -1,17 +1,67 @@
 {
-  "background": "lab_meltdown_bg.png (851x1849) - default background",
-  "coordinate_space": "pixels of lab_meltdown_bg.png",
-  "game_canvas": [
+  "background": "lab_meltdown_bg.png (851x1849)",
+  "overlays": "1x/ = full-canvas 851x1849 transparent PNGs, drop-in replacements for the old 1.png-7.png. 4x/ = same overlays at 3404x7396 for a 4x background. flat/ = un-warped artwork (1500x1440).",
+  "draw_at_xy": [
+    0,
+    0
+  ],
+  "frame_size": [
     851,
     1849
   ],
-  "draw_at_xy": [
-    225,
-    120
-  ],
-  "frame_size": [
-    400,
-    70
-  ],
-  "note": "Statuses 7.png down to 1.png are drawn at draw_at_xy. Edit draw_at_xy [x, y] or frame_size [width, height] here to reposition or resize the status image over the lab background screen."
+  "screen_quad_px": {
+    "TL": [
+      730,
+      889
+    ],
+    "TR": [
+      833,
+      890
+    ],
+    "BR": [
+      808,
+      998
+    ],
+    "BL": [
+      705,
+      980
+    ]
+  },
+  "statuses": {
+    "1": {
+      "mistakes": "0/6",
+      "label": "STABLE",
+      "color": "green"
+    },
+    "2": {
+      "mistakes": "1/6",
+      "label": "MINOR ISSUE",
+      "color": "lime green"
+    },
+    "3": {
+      "mistakes": "2/6",
+      "label": "UNSTABLE",
+      "color": "yellow"
+    },
+    "4": {
+      "mistakes": "3/6",
+      "label": "MALFUNCTION",
+      "color": "orange"
+    },
+    "5": {
+      "mistakes": "4/6",
+      "label": "CRITICAL",
+      "color": "deep orange"
+    },
+    "6": {
+      "mistakes": "5/6",
+      "label": "DANGER",
+      "color": "red"
+    },
+    "7": {
+      "mistakes": "6/6",
+      "label": "LAB MELTDOWN",
+      "color": "crimson red"
+    }
+  }
 }

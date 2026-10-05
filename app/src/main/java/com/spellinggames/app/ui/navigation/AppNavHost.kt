@@ -194,6 +194,7 @@ fun AppNavHost() {
                 val gameId = backStackEntry.arguments?.getString("gameId") ?: return@composable
                 when (gameId) {
                     "hangman" -> HangmanScreen(onBack = { navController.popBackStack() })
+                    "pirate_blaster" -> PirateBlasterScreen(onBack = { navController.popBackStack() })
                     "missing_letters" -> MissingLettersScreen(onBack = { navController.popBackStack() })
                     "word_gallery" -> {
                         val context = LocalContext.current

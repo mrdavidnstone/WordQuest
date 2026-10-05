@@ -36,11 +36,11 @@ import kotlinx.coroutines.delay
 @Composable
 fun PirateBlasterScreen(
     onBack: () -> Unit,
-    viewModel: WordGalleryViewModel = hiltViewModel()
+    viewModel: PirateBlasterViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val galleryState by viewModel.galleryState.collectAsState()
+    val galleryState by viewModel.blasterState.collectAsState()
 
     // Enforce Landscape Orientation for Pirate Blaster gameplay, revert to Portrait on exit
     DisposableEffect(Unit) {
@@ -65,7 +65,7 @@ fun PirateBlasterScreen(
 
     if (!uiState.isReady) {
         ReadyOverlay(
-            title = "Pirate Word Blaster",
+            title = "Pirate Blaster",
             emoji = "🏴‍☠️",
             description = "Aim your cannon at the barrel with the correct missing letter!",
             uiState = uiState,
@@ -139,16 +139,16 @@ fun PirateBlasterScreen(
                     .clip(RoundedCornerShape(16.dp))
                     .background(
                         when (target.state) {
-                            TargetState.HIT_CORRECT -> Color(0xFF22C55E)
-                            TargetState.HIT_INCORRECT -> Color(0xFFEF4444)
+                            PirateTargetState.HIT_CORRECT -> Color(0xFF22C55E)
+                            PirateTargetState.HIT_INCORRECT -> Color(0xFFEF4444)
                             else -> Color(0xFF78350F)
                         }
                     )
                     .border(
                         3.dp,
                         when (target.state) {
-                            TargetState.HIT_CORRECT -> Color.White
-                            TargetState.HIT_INCORRECT -> Color.White
+                            PirateTargetState.HIT_CORRECT -> Color.White
+                            PirateTargetState.HIT_INCORRECT -> Color.White
                             else -> Color(0xFFF59E0B)
                         },
                         RoundedCornerShape(16.dp)

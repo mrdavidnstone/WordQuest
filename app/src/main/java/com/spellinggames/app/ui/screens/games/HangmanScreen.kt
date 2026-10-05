@@ -380,7 +380,15 @@ fun HangmanScreen(
             Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0C1020)))
         }
 
-        // 2. RIGHT PURPLE TANK ANIMATION (Constant Liquid Shimmer & Translucent Bubbles)
+        // 2. LAB STATUS OVERLAY DIRECTLY ON TOP OF BACKGROUND IMAGE (starts at 7.png, steps down 1 number on each correct word)
+        val currentStatusNum = when {
+            isGameLost -> 7
+            uiState.score >= 7 -> 1
+            else -> (7 - uiState.score).coerceIn(1, 7)
+        }
+        StatusOverlay(statusNum = currentStatusNum)
+
+        // 3. RIGHT PURPLE TANK ANIMATION (Constant Liquid Shimmer & Translucent Bubbles)
         RightTankOverlay()
 
         // 3. LEFT UNSTABLE ROBOT ARM ANIMATION STATE MACHINE
@@ -420,20 +428,6 @@ fun HangmanScreen(
             wrongCount = if (isGameLost) 6 else hangmanState.wrongGuesses,
             isSparkStabilized = isSparkStabilized
         )
-
-        // Status Stepping Image Number (7.png -> 6.png -> ... -> 1.png stepping down on correct words; 7 on loss, 1 on win)
-        val currentStatusNum = when {
-            isGameLost -> 7
-            uiState.score >= 7 -> 1
-            else -> (7 - uiState.score).coerceIn(1, 7)
-        }
-        val statusPath = "games/lab_meltdown/statuses/$currentStatusNum.png"
-        val statusBitmap = remember(context, statusPath) {
-            loadAssetImageBitmap(context, statusPath)
-        }
-
-        // 8. LAB STATUS OVERLAY DIRECTLY ON TOP OF THE BACKGROUND IMAGE
-        StatusOverlay(statusNum = currentStatusNum)
 
         Column(modifier = Modifier.fillMaxSize()) {
             // COMBINED TOP BAR: Back Arrow + Status Stepping Bar + Win/Miss Progress Counters
@@ -2128,46 +2122,23 @@ private fun StatusOverlay(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val statusPath = "games/lab_meltdown/statuses/$statusNum.png"
+    val statusPath = "games/lab_meltdown/statuses/1x/$statusNum.png"
     val statusBitmap = remember(context, statusPath) {
         loadAssetImageBitmap(context, statusPath)
     }
 
-    val animConfig = remember(context) {
-        LabAnimConfig.load(
-            context,
-            "games/lab_meltdown/statuses/statuses.json",
-            defaultW = 400f, defaultH = 70f, defaultX = 225f, defaultY = 120f
-        )
-    }
-
     if (statusBitmap == null) return
 
-    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val screenW = this.maxWidth
-        val screenH = this.maxHeight
-
-        val scale = maxOf(screenW.value / animConfig.canvasW, screenH.value / animConfig.canvasH)
-        val offsetX = (screenW.value - animConfig.canvasW * scale) / 2f
-        val offsetY = (screenH.value - animConfig.canvasH * scale) / 2f
-
-        val statusW = (animConfig.frameW * scale).dp
-        val statusH = (animConfig.frameH * scale).dp
-        val statusX = (offsetX + animConfig.drawX * scale).dp
-        val statusY = (offsetY + animConfig.drawY * scale).dp
-
-        Box(
-            modifier = Modifier
-                .offset(x = statusX, y = statusY)
-                .size(width = statusW, height = statusH),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                bitmap = statusBitmap,
-                contentDescription = "Lab Status $statusNum Overlay",
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.FillBounds
-            )
-        }
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Draw 851x1849 native status overlay directly on top of lab_meltdown_bg.png
+        Image(
+            bitmap = statusBitmap,
+            contentDescription = "Lab Status $statusNum Overlay",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
     }
 }

@@ -4,10 +4,35 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Glowing Arcade Controller Base Frame -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M30,70 L40,40 L50,70 Z"/>
+        android:fillColor="#00B0FF"
+        android:pathData="M34,42 C34,36.5 38.5,32 44,32 L64,32 C69.5,32 74,36.5 74,42 L74,62 C74,67.5 69.5,72 64,72 L44,72 C38.5,72 34,67.5 34,62 Z"/>
+
+    <!-- Controller Inner Dark Screen -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M55,40 L55,70 L75,70 L75,60 L65,60 L65,40 Z"/>
+        android:fillColor="#0F172A"
+        android:pathData="M37,44 C37,40.1 40.1,37 44,37 L64,37 C67.9,37 71,40.1 71,44 L71,60 C71,63.9 67.9,67 64,67 L44,67 C40.1,67 37,63.9 37,60 Z"/>
+
+    <!-- D-Pad Arcade Cross (Neon Purple) -->
+    <path
+        android:fillColor="#A855F7"
+        android:pathData="M43,47 L47,47 L47,43 L51,43 L51,47 L55,47 L51,51 L51,55 L47,55 L47,51 L43,51 Z"/>
+
+    <!-- Action Buttons (Neon Pink & Amber Yellow) -->
+    <path
+        android:fillColor="#EC4899"
+        android:pathData="M63,45 A3,3 0 1,1 63,51 A3,3 0 1,1 63,45 Z"/>
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M57,51 A3,3 0 1,1 57,57 A3,3 0 1,1 57,51 Z"/>
+    <path
+        android:fillColor="#22C55E"
+        android:pathData="M63,57 A3,3 0 1,1 63,63 A3,3 0 1,1 63,57 Z"/>
+
+    <!-- Spelling Magic Wand / Star (Top Right Accent) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M54,22 L56,28 L62,28 L57,32 L59,38 L54,34 L49,38 L51,32 L46,28 L52,28 Z"/>
 </vector>

@@ -98,7 +98,7 @@ fun HomeScreen(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "WordQuest",
+                            "SpellArcade",
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Black,
                             color = Color.White,
