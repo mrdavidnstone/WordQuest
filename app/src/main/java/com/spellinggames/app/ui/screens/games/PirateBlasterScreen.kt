@@ -1,9 +1,12 @@
 package com.spellinggames.app.ui.screens.games
 
 import android.app.Activity
+import android.content.Context
 import android.content.pm.ActivityInfo
+import android.graphics.BitmapFactory
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,16 +23,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.spellinggames.app.data.model.AvatarConfig
 import com.spellinggames.app.ui.components.GameHeader
 import com.spellinggames.app.ui.components.ReadyOverlay
 import com.spellinggames.app.ui.components.avatar.HeroAnimationState
 import com.spellinggames.app.ui.components.avatar.HeroSprite
+import com.spellinggames.app.util.MusicManager
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,14 +53,22 @@ fun PirateBlasterScreen(
     val uiState by viewModel.uiState.collectAsState()
     val galleryState by viewModel.blasterState.collectAsState()
 
-    // Enforce Landscape Orientation for Pirate Blaster gameplay, revert to Portrait on exit
-    DisposableEffect(Unit) {
+    // Portrait on Ready/Info screen, Landscape during Pirate Blaster gameplay
+    DisposableEffect(uiState.isReady) {
         val activity = context as? Activity
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        activity?.requestedOrientation = if (uiState.isReady) {
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
 
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
+    }
+
+    LaunchedEffect(Unit) {
+        MusicManager.playMusic(context, "music/pirate_blaster_scene1.wav")
     }
 
     LaunchedEffect(uiState.currentWord) {
@@ -88,43 +107,154 @@ fun PirateBlasterScreen(
         label = "bob"
     )
 
+    // Subtle Rocking / Floating Animation for Ship Foreground (±8px vertical, ±0.6° rotation)
+    val dockAnim = rememberInfiniteTransition(label = "dock_floating")
+    val dockOffsetY by dockAnim.animateFloat(
+        initialValue = -8f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dock_vertical"
+    )
+    val dockRotation by dockAnim.animateFloat(
+        initialValue = -0.6f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dock_rotation"
+    )
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFF0F172A), Color(0xFF0284C7), Color(0xFF0369A1))
-                )
-            )
+            .background(Color(0xFF0F172A))
     ) {
         val canvasW = this.maxWidth
         val canvasH = this.maxHeight
 
-        // PIRATE COVE ENVIRONMENT (Ocean, Wooden Docks, Sky)
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Sky & Clouds
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.45f)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFF0F172A), Color(0xFF0284C7))
-                        )
-                    )
-            )
+        val scene1Bitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/scene1.png") }
+        val foregroundBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/foreground.png") }
 
-            // Ocean Water & Cove
+        // Adjustable background settings
+        var backgroundScrollSpeed by remember { mutableFloatStateOf(4f) }
+        var backgroundVerticalOffset by remember { mutableFloatStateOf(50f) } // Positive moves the background down
+
+        val density = LocalDensity.current.density
+        val zoomFactor = 3.0f
+        val imageW = remember(canvasH, density) { 9600f * ((canvasH.value * zoomFactor) / 1080f) }
+        val imageWDp = remember(imageW, density) { (imageW / density).dp }
+        val scaledH = canvasH * zoomFactor
+        val verticalOffset = ((canvasH.value - scaledH.value) / 2f) + backgroundVerticalOffset
+
+        var scene1X by remember { mutableFloatStateOf(0f) }
+        var initialized by remember { mutableStateOf(false) }
+
+        if (!initialized && imageW > 0f) {
+            scene1X = 0f
+            initialized = true
+        }
+
+        LaunchedEffect(imageW) {
+            var lastTime = System.nanoTime()
+            while (true) {
+                val currentTime = withFrameNanos { it }
+                val deltaSeconds = (currentTime - lastTime) / 1_000_000_000f
+                lastTime = currentTime
+
+                if (deltaSeconds > 0 && deltaSeconds < 0.1f) {
+                    scene1X -= backgroundScrollSpeed * deltaSeconds
+                    if (scene1X <= -imageW) {
+                        scene1X += imageW
+                    }
+                }
+            }
+        }
+
+        val scene1CopyX = scene1X + imageW
+
+        // SCENE 1 ENDLESS SCROLLING BACKGROUND (Seamlessly joined, no gaps)
+        if (scene1Bitmap != null) {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Image(
+                    bitmap = scene1Bitmap,
+                    contentDescription = "Scene 1 Background",
+                    modifier = Modifier
+                        .size(width = imageWDp, height = scaledH)
+                        .graphicsLayer {
+                            translationX = scene1X
+                            translationY = verticalOffset
+                        },
+                    contentScale = ContentScale.FillBounds
+                )
+                Image(
+                    bitmap = scene1Bitmap,
+                    contentDescription = "Scene 1 Background Copy",
+                    modifier = Modifier
+                        .size(width = imageWDp, height = scaledH)
+                        .graphicsLayer {
+                            translationX = scene1CopyX
+                            translationY = verticalOffset
+                        },
+                    contentScale = ContentScale.FillBounds
+                )
+            }
+        } else {
+            // Fallback gradient if bitmap is missing
+            Column(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.45f)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color(0xFF0F172A), Color(0xFF0284C7))
+                            )
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.55f)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color(0xFF0284C7), Color(0xFF075985), Color(0xFF0C4A6E))
+                            )
+                        )
+                )
+            }
+        }
+
+        // FOREGROUND DOCK OVERLAY WITH SUBTLE SHIP FLOATING / ROCKING MOTION (zIndex 1f)
+        if (foregroundBitmap != null) {
+            val bitmapWidth = foregroundBitmap.width.toFloat()
+            val bitmapHeight = foregroundBitmap.height.toFloat()
+
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.55f)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFF0284C7), Color(0xFF075985), Color(0xFF0C4A6E))
-                        )
-                    )
-            )
+                    .fillMaxSize()
+                    .zIndex(1f),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Image(
+                    bitmap = foregroundBitmap,
+                    contentDescription = "Foreground Dock",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(if (bitmapWidth > 0f && bitmapHeight > 0f) bitmapWidth / bitmapHeight else (16f / 9f))
+                        .graphicsLayer {
+                            translationY = dockOffsetY
+                            rotationZ = dockRotation
+                            transformOrigin = TransformOrigin(0.5f, 1.0f)
+                        },
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
 
         // FLOATING BARREL TARGETS (Converted missing letter choices)
@@ -136,6 +266,7 @@ fun PirateBlasterScreen(
                 modifier = Modifier
                     .offset(x = targetX - 32.dp, y = targetY - 36.dp)
                     .size(width = 68.dp, height = 76.dp)
+                    .zIndex(2f)
                     .clip(RoundedCornerShape(16.dp))
                     .background(
                         when (target.state) {
@@ -181,71 +312,73 @@ fun PirateBlasterScreen(
                 modifier = Modifier
                     .offset(x = shotX - 10.dp, y = shotY - 10.dp)
                     .size(20.dp)
+                    .zIndex(2f)
                     .clip(CircleShape)
                     .background(Color(0xFF1E293B))
                     .border(2.dp, Color(0xFFF59E0B), CircleShape)
             )
         }
 
-        // FOREGROUND LOWER-LEFT: CANNON & HERO AVATAR & PIRATE COMPANION
+        // FOREGROUND LOWER-RIGHT: CANNON & HERO AVATAR & PIRATE COMPANION (Z-index on top of foreground)
         Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 16.dp, bottom = 12.dp)
+                .align(Alignment.BottomEnd)
+                .padding(end = 8.dp, bottom = 48.dp)
+                .zIndex(2f)
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
-                // Hero Sprite Avatar
-                val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
-                HeroSprite(
-                    config = heroConfig,
-                    modifier = Modifier.height(140.dp),
-                    animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
-                    sway = false,
-                    breath = false
-                )
-
-                Spacer(Modifier.width(8.dp))
-
-                // Cannon Barrel
-                Box(
-                    modifier = Modifier
-                        .size(width = 80.dp, height = 48.dp)
-                        .rotate(galleryState.cannonAngle)
-                        .background(Color(0xFF334155), RoundedCornerShape(12.dp))
-                        .border(2.dp, Color(0xFFF59E0B), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(end = 4.dp)
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF0F172A))
-                    )
-                }
-
-                Spacer(Modifier.width(12.dp))
-
                 // Pirate Captain Companion
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     galleryState.pirateSpeech?.let { speech ->
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = Color(0xFF0F172A).copy(alpha = 0.9f),
                             border = BorderStroke(1.dp, Color(0xFFF59E0B))
                         ) {
                             Text(
                                 speech,
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(2.dp))
                     }
-                    Text("🦜🏴‍☠️", fontSize = 28.sp)
+                    Text("🦜🏴‍☠️", fontSize = 18.sp)
                 }
+
+                Spacer(Modifier.width(6.dp))
+
+                // Cannon Barrel
+                Box(
+                    modifier = Modifier
+                        .size(width = 44.dp, height = 26.dp)
+                        .rotate(galleryState.cannonAngle)
+                        .background(Color(0xFF334155), RoundedCornerShape(8.dp))
+                        .border(1.5.dp, Color(0xFFF59E0B), RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 3.dp)
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF0F172A))
+                    )
+                }
+
+                Spacer(Modifier.width(6.dp))
+
+                // Hero Sprite Avatar (Scaled down to 30.dp)
+                val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
+                HeroSprite(
+                    config = heroConfig,
+                    modifier = Modifier.height(30.dp),
+                    animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
+                    sway = false,
+                    breath = false
+                )
             }
         }
 
@@ -254,6 +387,7 @@ fun PirateBlasterScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 16.dp)
+                .zIndex(2f)
         ) {
             Surface(
                 shape = RoundedCornerShape(20.dp),
@@ -290,7 +424,8 @@ fun PirateBlasterScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .zIndex(2f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -328,6 +463,7 @@ fun PirateBlasterScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .zIndex(10f)
                     .background(Color.Black.copy(alpha = 0.85f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -354,4 +490,13 @@ fun PirateBlasterScreen(
             }
         }
     }
+}
+
+private fun loadAssetImageBitmap(context: Context, assetName: String): ImageBitmap? {
+    try {
+        context.assets.open(assetName).use { stream ->
+            BitmapFactory.decodeStream(stream)?.asImageBitmap()?.let { return it }
+        }
+    } catch (_: Exception) {}
+    return null
 }

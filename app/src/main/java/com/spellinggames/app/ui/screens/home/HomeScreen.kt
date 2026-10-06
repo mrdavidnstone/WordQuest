@@ -79,11 +79,13 @@ fun HomeScreen(
                 }
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 0.dp, end = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Hero (Stationary, matching Build Your Hero)
-                    Box(modifier = Modifier.size(110.dp)) {
+                    // Hero (Shifted to far-left edge)
+                    Box(modifier = Modifier.size(105.dp)) {
                         AvatarDisplay(
                             avatar = uiState.avatar,
                             modifier = Modifier
@@ -94,27 +96,30 @@ fun HomeScreen(
                         )
                     }
                     
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(4.dp))
 
-                    Column(modifier = Modifier.weight(1f)) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.Start
+                    ) {
                         Text(
                             "SpellArcade",
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Black,
                             color = Color.White,
-                            fontSize = 32.sp,
-                            lineHeight = 36.sp
+                            fontSize = 30.sp,
+                            lineHeight = 34.sp
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("⭐", fontSize = 10.sp)
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(3.dp))
                             Text(
                                 "Let's play & learn!",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.White.copy(alpha = 0.9f),
                                 fontWeight = FontWeight.Bold
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(3.dp))
                             Text("⭐", fontSize = 10.sp)
                         }
                     }

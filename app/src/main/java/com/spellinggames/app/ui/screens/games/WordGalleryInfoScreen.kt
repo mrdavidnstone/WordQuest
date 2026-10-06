@@ -42,15 +42,6 @@ data class GalleryAttraction(
 
 val galleryAttractions = listOf(
     GalleryAttraction(
-        id = "pirate_blaster",
-        title = "Pirate Blaster",
-        emoji = "🏴‍☠️",
-        color = Color(0xFFD97706),
-        isPlayable = true,
-        statusLabel = "PLAY NOW",
-        previewBg = listOf(Color(0xFF0F172A), Color(0xFF0284C7), Color(0xFF075985))
-    ),
-    GalleryAttraction(
         id = "carnival_pop",
         title = "Carnival Pop & Spell",
         emoji = "🎈",
@@ -89,7 +80,7 @@ fun WordGalleryInfoScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
-    var selectedAttractionId by remember { mutableStateOf("pirate_blaster") }
+    var selectedAttractionId by remember { mutableStateOf("carnival_pop") }
     var listDropdownExpanded by remember { mutableStateOf(false) }
 
     val selectedAttraction = galleryAttractions.find { it.id == selectedAttractionId } ?: galleryAttractions[0]
@@ -112,7 +103,7 @@ fun WordGalleryInfoScreen(
                     listOf(Color(0xFF0F172A), Color(0xFF1E1B4B), Color(0xFF2E1065))
                 )
             )
-            .padding(12.dp)
+            .padding(6.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // TOP HEADER: Back Button + Word Gallery Banner + Spelling List Selector Dropdown
@@ -127,7 +118,7 @@ fun WordGalleryInfoScreen(
                         onBack()
                     },
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.15f))
                 ) {
@@ -136,32 +127,32 @@ fun WordGalleryInfoScreen(
 
                 Text(
                     "WORD GALLERY",
-                    fontSize = 20.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Black,
                     color = Color(0xFFF472B6),
-                    letterSpacing = 2.sp
+                    letterSpacing = 1.5.sp
                 )
 
                 // SPELLING LIST SELECTOR DROPDOWN (Applies to all Word Gallery games)
                 Box {
                     Surface(
                         onClick = { listDropdownExpanded = true },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = Color(0xFF1E293B),
                         border = BorderStroke(1.5.dp, Color(0xFFF472B6))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 "📜 ${uiState.listName ?: "Select List"}",
-                                fontSize = 11.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Spacer(Modifier.width(4.dp))
-                            Icon(Icons.Default.ArrowDropDown, "List Menu", tint = Color.White)
+                            Icon(Icons.Default.ArrowDropDown, "List Menu", tint = Color.White, modifier = Modifier.size(18.dp))
                         }
                     }
 
@@ -190,16 +181,16 @@ fun WordGalleryInfoScreen(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
             // CENTER: LARGE FEATURED GAME SCREENSHOT / PREVIEW CARD
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(Brush.verticalGradient(selectedAttraction.previewBg))
-                    .border(2.5.dp, selectedAttraction.color, RoundedCornerShape(20.dp)),
+                    .border(2.dp, selectedAttraction.color, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 // Mockup Game Screen Elements inside the Featured Preview
@@ -207,7 +198,7 @@ fun WordGalleryInfoScreen(
                     "pirate_blaster" -> {
                         // Pirate Cove Mockup Preview
                         Column(
-                            modifier = Modifier.fillMaxSize().padding(12.dp),
+                            modifier = Modifier.fillMaxSize().padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -215,25 +206,25 @@ fun WordGalleryInfoScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("🏴‍☠️ PIRATE BLASTER", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color(0xFFF59E0B))
-                                Text("SCORE: 0/10", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("🏴‍☠️ PIRATE BLASTER", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color(0xFFF59E0B))
+                                Text("SCORE: 0/10", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
 
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF78350F), border = BorderStroke(1.dp, Color(0xFFF59E0B))) {
-                                    Text("🛢️ A", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(10.dp))
+                                Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF78350F), border = BorderStroke(1.dp, Color(0xFFF59E0B))) {
+                                    Text("🛢️ A", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                                 }
-                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF78350F), border = BorderStroke(1.dp, Color(0xFFF59E0B))) {
-                                    Text("🛢️ E", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(10.dp))
+                                Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF78350F), border = BorderStroke(1.dp, Color(0xFFF59E0B))) {
+                                    Text("🛢️ E", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                                 }
-                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF78350F), border = BorderStroke(1.dp, Color(0xFFF59E0B))) {
-                                    Text("🛢️ U", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(10.dp))
+                                Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF78350F), border = BorderStroke(1.dp, Color(0xFFF59E0B))) {
+                                    Text("🛢️ U", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                                 }
-                                Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFF78350F), border = BorderStroke(1.dp, Color(0xFFF59E0B))) {
-                                    Text("🛢️ T", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(10.dp))
+                                Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFF78350F), border = BorderStroke(1.dp, Color(0xFFF59E0B))) {
+                                    Text("🛢️ T", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                                 }
                             }
 
@@ -241,15 +232,15 @@ fun WordGalleryInfoScreen(
                             Button(
                                 onClick = { onLaunchAttraction("pirate_blaster") },
                                 modifier = Modifier
-                                    .fillMaxWidth(0.5f)
-                                    .height(44.dp),
-                                shape = RoundedCornerShape(14.dp),
+                                    .fillMaxWidth(0.45f)
+                                    .height(36.dp),
+                                shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("PLAY PIRATE BLASTER NOW", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                    Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("PLAY PIRATE BLASTER NOW", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
                                 }
                             }
                         }
@@ -301,7 +292,7 @@ fun WordGalleryInfoScreen(
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp),
-                modifier = Modifier.fillMaxWidth().height(68.dp)
+                modifier = Modifier.fillMaxWidth().height(50.dp)
             ) {
                 items(galleryAttractions, key = { it.id }) { attraction ->
                     val isSelected = attraction.id == selectedAttractionId

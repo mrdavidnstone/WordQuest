@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.spellinggames.app.data.model.AvatarConfig
 import com.spellinggames.app.ui.screens.profile.character.AvatarSpriteRenderer
+import com.spellinggames.app.ui.screens.profile.character.CharacterLayerType
 import com.spellinggames.app.ui.screens.profile.character.CharacterState
 
 enum class HeroAnimationState {
@@ -36,7 +37,8 @@ fun HeroSprite(
     sway: Boolean = false,
     breath: Boolean = false,
     isJumping: Boolean = false,
-    overrideTopPath: String? = null
+    overrideTopPath: String? = null,
+    layerVisibility: Map<CharacterLayerType, Boolean> = emptyMap()
 ) {
     val characterState = remember(config) {
         CharacterState(
@@ -101,7 +103,8 @@ fun HeroSprite(
         AvatarSpriteRenderer(
             character = characterState,
             modifier = Modifier.fillMaxSize(),
-            overrideTopPath = overrideTopPath
+            overrideTopPath = overrideTopPath,
+            layerVisibility = layerVisibility
         )
     }
 }

@@ -87,7 +87,12 @@ fun AppNavHost() {
                         MusicManager.playMusic(context, "music/lab_meltdown.ogg")
                     }
                 }
-                Lifecycle.Event.ON_DESTROY -> MusicManager.stopMusic()
+                Lifecycle.Event.ON_DESTROY -> {
+                    val activity = context as? Activity
+                    if (activity == null || activity.isFinishing) {
+                        MusicManager.stopMusic()
+                    }
+                }
                 else -> {}
             }
         }
@@ -193,7 +198,7 @@ fun AppNavHost() {
             ) { backStackEntry ->
                 val gameId = backStackEntry.arguments?.getString("gameId") ?: return@composable
                 when (gameId) {
-                    "hangman" -> HangmanScreen(onBack = { navController.popBackStack() })
+                    "hangman" -> LabMeltdownScreen(onBack = { navController.popBackStack() })
                     "pirate_blaster" -> PirateBlasterScreen(onBack = { navController.popBackStack() })
                     "missing_letters" -> MissingLettersScreen(onBack = { navController.popBackStack() })
                     "word_gallery" -> {

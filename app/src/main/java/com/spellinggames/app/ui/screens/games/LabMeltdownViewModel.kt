@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 enum class CharacterMood { CONFIDENT, CONCERNED, NERVOUS, WORRIED, PANICKED, HAPPY, DEFEATED }
 
-data class HangmanUiState(
+data class LabMeltdownUiState(
     val guessedLetters: Set<Char> = emptySet(),
     val wrongGuesses: Int = 0,
     val maxWrong: Int = 6, 
@@ -24,13 +24,13 @@ data class HangmanUiState(
 )
 
 @HiltViewModel
-class HangmanViewModel @Inject constructor(
+class LabMeltdownViewModel @Inject constructor(
     repository: SpellingRepository,
     settings: SettingsRepository
 ) : BaseGameViewModel(repository, settings, "hangman") {
 
-    private val _hangmanState = MutableStateFlow(HangmanUiState())
-    val hangmanState: StateFlow<HangmanUiState> = _hangmanState.asStateFlow()
+    private val _labMeltdownState = MutableStateFlow(LabMeltdownUiState())
+    val labMeltdownState: StateFlow<LabMeltdownUiState> = _labMeltdownState.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -41,18 +41,18 @@ class HangmanViewModel @Inject constructor(
                     3 -> 5 // Difficult: 5 misses
                     else -> 8
                 }
-                _hangmanState.update { it.copy(maxWrong = newMaxWrong, overallDifficulty = state.overallDifficulty) }
+                _labMeltdownState.update { it.copy(maxWrong = newMaxWrong, overallDifficulty = state.overallDifficulty) }
 
                 val currentWordText = state.currentWord?.text
                 if (!currentWordText.isNullOrBlank() && !state.showFeedback && !state.isFinished) {
-                    val currentMasked = _hangmanState.value.maskedWord
-                    if (currentMasked.isBlank() || _hangmanState.value.guessedLetters.isNotEmpty() && !currentMasked.contains('_')) {
-                        resetHangmanForNewWord(currentWordText, state.listName ?: "Spelling")
+                    val currentMasked = _labMeltdownState.value.maskedWord
+                    if (currentMasked.isBlank() || _labMeltdownState.value.guessedLetters.isNotEmpty() && !currentMasked.contains('_')) {
+                        resetLabMeltdownForNewWord(currentWordText, state.listName ?: "Spelling")
                     }
                 }
                 
                 if (state.isFinished) {
-                    _hangmanState.update { it.copy(mood = if (state.isCorrect == true) CharacterMood.HAPPY else CharacterMood.DEFEATED) }
+                    _labMeltdownState.update { it.copy(mood = if (state.isCorrect == true) CharacterMood.HAPPY else CharacterMood.DEFEATED) }
                 }
             }
         }
@@ -83,7 +83,7 @@ class HangmanViewModel @Inject constructor(
                     val retry = repository.getNextWord(listId)
                     if (retry != null) {
                         usedWordIds.add(retry.id)
-                        resetHangmanForNewWord(retry.text, uiState.value.listName ?: "Spelling")
+                        resetLabMeltdownForNewWord(retry.text, uiState.value.listName ?: "Spelling")
                         _uiState.update {
                             it.copy(
                                 currentWord = retry,
@@ -100,7 +100,7 @@ class HangmanViewModel @Inject constructor(
                 }
             } else {
                 usedWordIds.add(word.id)
-                resetHangmanForNewWord(word.text, uiState.value.listName ?: "Spelling")
+                resetLabMeltdownForNewWord(word.text, uiState.value.listName ?: "Spelling")
                 _uiState.update {
                     it.copy(
                         currentWord = word,
@@ -113,7 +113,7 @@ class HangmanViewModel @Inject constructor(
         }
     }
 
-    private fun resetHangmanForNewWord(word: String, listName: String) {
+    private fun resetLabMeltdownForNewWord(word: String, listName: String) {
         val initialMasked = word.map { char ->
             if (char == ' ') ' ' else '_'
         }.joinToString("")
@@ -125,7 +125,7 @@ class HangmanViewModel @Inject constructor(
             else -> 8
         }
 
-        _hangmanState.value = HangmanUiState(
+        _labMeltdownState.value = LabMeltdownUiState(
             guessedLetters = emptySet(),
             wrongGuesses = 0,
             maxWrong = maxWrong,
@@ -142,10 +142,10 @@ class HangmanViewModel @Inject constructor(
         val requireCaps = uiState.value.requireCapitalLetters
 
         val isAlreadyGuessed = if (requireCaps) {
-            _hangmanState.value.guessedLetters.contains(letter)
+            _labMeltdownState.value.guessedLetters.contains(letter)
         } else {
-            _hangmanState.value.guessedLetters.contains(letter.lowercaseChar()) ||
-            _hangmanState.value.guessedLetters.contains(letter.uppercaseChar())
+            _labMeltdownState.value.guessedLetters.contains(letter.lowercaseChar()) ||
+            _labMeltdownState.value.guessedLetters.contains(letter.uppercaseChar())
         }
 
         if (isAlreadyGuessed) return
@@ -156,7 +156,7 @@ class HangmanViewModel @Inject constructor(
             word.contains(letter, ignoreCase = true)
         }
 
-        _hangmanState.update { state ->
+        _labMeltdownState.update { state ->
             val addedLetters = if (!requireCaps && letter.isLetter()) setOf(letter, letter.lowercaseChar(), letter.uppercaseChar()) else setOf(letter)
             val newGuessed = state.guessedLetters + addedLetters
             val newWrong = if (isCorrect) state.wrongGuesses else state.wrongGuesses + 1
@@ -189,7 +189,7 @@ class HangmanViewModel @Inject constructor(
 
     private fun updateMaskedWord() {
         val word = uiState.value.currentWord?.text ?: return
-        val guessed = _hangmanState.value.guessedLetters
+        val guessed = _labMeltdownState.value.guessedLetters
         val requireCaps = uiState.value.requireCapitalLetters
 
         val masked = word.map { char ->
@@ -201,11 +201,11 @@ class HangmanViewModel @Inject constructor(
             if (isMatch || char == ' ') char else '_'
         }.joinToString("")
 
-        _hangmanState.update { it.copy(maskedWord = masked) }
+        _labMeltdownState.update { it.copy(maskedWord = masked) }
     }
 
     private fun checkGameStatus() {
-        val state = _hangmanState.value
+        val state = _labMeltdownState.value
         val word = uiState.value.currentWord?.text ?: return
         val requireCaps = uiState.value.requireCapitalLetters
 

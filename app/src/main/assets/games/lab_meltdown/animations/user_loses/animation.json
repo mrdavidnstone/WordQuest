@@ -56,22 +56,24 @@
       "file": "door/door_frame_static.png",
       "x": 0,
       "y": 0,
+      "width": 851,
+      "height": 1849,
       "note": "wall, pipes, red lamp (unlit), frame and floor. Transparent where the door leaves are, so the game shows through while the doors are open. Draw above the door leaves."
     },
     "door_left": {
       "file": "door/door_left.png",
       "closed_x": 88,
       "y": 176,
-      "width": 343,
-      "height": 1479,
+      "width": 851,
+      "height": 1849,
       "slides_from": "left"
     },
     "door_right": {
       "file": "door/door_right.png",
       "closed_x": 433,
       "y": 176,
-      "width": 330,
-      "height": 1479,
+      "width": 851,
+      "height": 1849,
       "slides_from": "right"
     },
     "hazard": {
@@ -105,13 +107,6 @@
       "y": 0,
       "note": "red lamp flash, rotating light beams and glow; draw on top of everything"
     }
-  },
-  "display_area": {
-    "x": 191,
-    "y": 408,
-    "width": 473,
-    "height": 981,
-    "note": "Inside the neon-purple frame on the closed doors. Put your buttons and text here; it is a dark solid panel and the hazard light never draws over it. Leave roughly 24 px padding inside."
   },
   "phases": [
     {

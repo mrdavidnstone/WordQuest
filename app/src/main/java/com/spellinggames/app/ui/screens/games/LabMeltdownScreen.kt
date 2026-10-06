@@ -42,6 +42,7 @@ import com.spellinggames.app.data.model.AvatarConfig
 import com.spellinggames.app.ui.components.*
 import com.spellinggames.app.ui.components.avatar.HeroAnimationState
 import com.spellinggames.app.ui.components.avatar.HeroSprite
+import com.spellinggames.app.ui.screens.profile.character.CharacterLayerType
 import com.spellinggames.app.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -65,13 +66,13 @@ enum class LabChaosEffect(val title: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HangmanScreen(
+fun LabMeltdownScreen(
     onBack: () -> Unit,
-    viewModel: HangmanViewModel = hiltViewModel()
+    viewModel: LabMeltdownViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val hangmanState by viewModel.hangmanState.collectAsState()
+    val labMeltdownState by viewModel.labMeltdownState.collectAsState()
 
     val bgBitmap = remember(context) { loadAssetImageBitmap(context, "lab_meltdown_bg.png") }
     val titleBitmap = remember(context) { loadAssetImageBitmap(context, "lab_meltdown_title.png") }
@@ -87,8 +88,8 @@ fun HangmanScreen(
     // Screen Shake effect for wrong guesses & meltdown
     val shakeAnim = remember { Animatable(0f) }
 
-    LaunchedEffect(hangmanState.wrongGuesses) {
-        if (hangmanState.wrongGuesses > 0 && !uiState.isFinished) {
+    LaunchedEffect(labMeltdownState.wrongGuesses) {
+        if (labMeltdownState.wrongGuesses > 0 && !uiState.isFinished) {
             // Pick unplayed chaos effect
             val available = LabChaosEffect.entries.filter { !playedEffects.contains(it) }
             val chosen = if (available.isNotEmpty()) available.random() else LabChaosEffect.entries.random()
@@ -298,8 +299,8 @@ fun HangmanScreen(
 
     LaunchedEffect(isDoorSequenceStable) {
         if (isDoorSequenceStable) {
-            // Step 3: Once blast doors are closed, wait 8 seconds before showing popup modal
-            delay(8000L)
+            // Step 3: Once blast doors are closed, wait 2 seconds before showing popup modal
+            delay(2000L)
             showResultModal = true
         }
     }
@@ -380,11 +381,11 @@ fun HangmanScreen(
             Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0C1020)))
         }
 
-        // 2. LAB STATUS OVERLAY DIRECTLY ON TOP OF BACKGROUND IMAGE (starts at 7.png, steps down 1 number on each correct word)
+        // 2. LAB STATUS OVERLAY DIRECTLY ON TOP OF BACKGROUND IMAGE (starts at 7.png, steps down 1 number on each correct word, ending at 0.png when stable)
         val currentStatusNum = when {
             isGameLost -> 7
-            uiState.score >= 7 -> 1
-            else -> (7 - uiState.score).coerceIn(1, 7)
+            uiState.score >= 7 -> 0
+            else -> (7 - uiState.score).coerceIn(0, 7)
         }
         StatusOverlay(statusNum = currentStatusNum)
 
@@ -394,7 +395,7 @@ fun HangmanScreen(
         // 3. LEFT UNSTABLE ROBOT ARM ANIMATION STATE MACHINE
         RobotArmOverlay(
             isStabilized = isArmStabilized,
-            wrongCount = hangmanState.wrongGuesses
+            wrongCount = labMeltdownState.wrongGuesses
         )
 
         // 4. GREEN UNSTABLE TANK ANIMATION (unstable -> settle -> stable_idle)
@@ -425,7 +426,7 @@ fun HangmanScreen(
         // 8. ACTIVE LAB CHAOS OVERLAYS (Flashes, Steam, Slime)
         LabChaosOverlay(
             effect = if (isGameLost) LabChaosEffect.ALARM_FLASH else activeEffect,
-            wrongCount = if (isGameLost) 6 else hangmanState.wrongGuesses,
+            wrongCount = if (isGameLost) 6 else labMeltdownState.wrongGuesses,
             isSparkStabilized = isSparkStabilized
         )
 
@@ -464,8 +465,8 @@ fun HangmanScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         // LEFT SIDE: Misses in current word (0/maxMisses rounded boxes in warning neon red)
-                        val maxMisses = hangmanState.maxWrong
-                        val currentMisses = hangmanState.wrongGuesses.coerceIn(0, maxMisses)
+                        val maxMisses = labMeltdownState.maxWrong
+                        val currentMisses = labMeltdownState.wrongGuesses.coerceIn(0, maxMisses)
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -575,18 +576,32 @@ fun HangmanScreen(
                         .padding(horizontal = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    LabLetterBlanksGrid(hangmanState.maskedWord)
+                    LabLetterBlanksGrid(labMeltdownState.maskedWord)
                 }
 
                 Spacer(Modifier.weight(1f))
 
-                // BOTTOM LEFT: Larger Hero Character standing on the far left edge above keyboard (No idle motion until victory)
+                // BOTTOM LEFT: Larger Hero Character standing on the far left edge above keyboard (Hazard suit on loss, lab coat during gameplay)
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.BottomStart
                 ) {
                     val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
-                    val labCoatPath = "sprites/special/lab_meltdown/lab_meltdown_coat_${heroConfig.topColor}.png"
+                    val labCoatPath = if (isGameLost) {
+                        "sprites/special/lab_meltdown/lab_meltdown_hazard_suite.png"
+                    } else {
+                        "sprites/special/lab_meltdown/lab_meltdown_coat_${heroConfig.topColor}.png"
+                    }
+                    val heroLayerVisibility = if (isGameLost) {
+                        mapOf(
+                            CharacterLayerType.SHOES to false,
+                            CharacterLayerType.BOTTOM to false,
+                            CharacterLayerType.HAIR to false,
+                            CharacterLayerType.HAT to false
+                        )
+                    } else {
+                        emptyMap()
+                    }
                     HeroSprite(
                         config = heroConfig,
                         modifier = Modifier
@@ -596,7 +611,8 @@ fun HangmanScreen(
                         sway = false,
                         breath = false,
                         isJumping = false,
-                        overrideTopPath = labCoatPath
+                        overrideTopPath = labCoatPath,
+                        layerVisibility = heroLayerVisibility
                     )
                 }
             }
@@ -634,7 +650,7 @@ fun HangmanScreen(
                         ) {
                             rawRow1.forEach { rawChar ->
                                 val letterChar = if (!requireCapsSetting) rawChar.uppercaseChar() else if (isCapitalized) rawChar.uppercaseChar() else rawChar.lowercaseChar()
-                                val isGuessed = if (requireCapsSetting) hangmanState.guessedLetters.contains(letterChar) else (hangmanState.guessedLetters.contains(rawChar) || hangmanState.guessedLetters.contains(rawChar.uppercaseChar()))
+                                val isGuessed = if (requireCapsSetting) labMeltdownState.guessedLetters.contains(letterChar) else (labMeltdownState.guessedLetters.contains(rawChar) || labMeltdownState.guessedLetters.contains(rawChar.uppercaseChar()))
                                 val isCorrect = if (requireCapsSetting) (isGuessed && targetWord.contains(letterChar)) else (isGuessed && targetWord.contains(rawChar, ignoreCase = true))
 
                                 LabKeyTile(
@@ -655,7 +671,7 @@ fun HangmanScreen(
                         ) {
                             rawRow2.forEach { rawChar ->
                                 val letterChar = if (!requireCapsSetting) rawChar.uppercaseChar() else if (isCapitalized) rawChar.uppercaseChar() else rawChar.lowercaseChar()
-                                val isGuessed = if (requireCapsSetting) hangmanState.guessedLetters.contains(letterChar) else (hangmanState.guessedLetters.contains(rawChar) || hangmanState.guessedLetters.contains(rawChar.uppercaseChar()))
+                                val isGuessed = if (requireCapsSetting) labMeltdownState.guessedLetters.contains(letterChar) else (labMeltdownState.guessedLetters.contains(rawChar) || labMeltdownState.guessedLetters.contains(rawChar.uppercaseChar()))
                                 val isCorrect = if (requireCapsSetting) (isGuessed && targetWord.contains(letterChar)) else (isGuessed && targetWord.contains(rawChar, ignoreCase = true))
 
                                 LabKeyTile(
@@ -690,7 +706,7 @@ fun HangmanScreen(
 
                             rawRow3.forEach { rawChar ->
                                 val letterChar = if (!requireCapsSetting) rawChar.uppercaseChar() else if (isCapitalized) rawChar.uppercaseChar() else rawChar.lowercaseChar()
-                                val isGuessed = if (requireCapsSetting) hangmanState.guessedLetters.contains(letterChar) else (hangmanState.guessedLetters.contains(rawChar) || hangmanState.guessedLetters.contains(rawChar.uppercaseChar()))
+                                val isGuessed = if (requireCapsSetting) labMeltdownState.guessedLetters.contains(letterChar) else (labMeltdownState.guessedLetters.contains(rawChar) || labMeltdownState.guessedLetters.contains(rawChar.uppercaseChar()))
                                 val isCorrect = if (requireCapsSetting) (isGuessed && targetWord.contains(letterChar)) else (isGuessed && targetWord.contains(rawChar, ignoreCase = true))
 
                                 LabKeyTile(
@@ -728,7 +744,7 @@ fun HangmanScreen(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
                         ) {
                             numRow1.forEach { symbol ->
-                                val isGuessed = hangmanState.guessedLetters.contains(symbol)
+                                val isGuessed = labMeltdownState.guessedLetters.contains(symbol)
                                 val isCorrect = isGuessed && targetWord.contains(symbol)
 
                                 LabKeyTile(
@@ -748,7 +764,7 @@ fun HangmanScreen(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp)
                         ) {
                             numRow2.forEach { symbol ->
-                                val isGuessed = hangmanState.guessedLetters.contains(symbol)
+                                val isGuessed = labMeltdownState.guessedLetters.contains(symbol)
                                 val isCorrect = isGuessed && targetWord.contains(symbol)
 
                                 LabKeyTile(
@@ -779,7 +795,7 @@ fun HangmanScreen(
                             )
 
                             numRow3.forEach { symbol ->
-                                val isGuessed = hangmanState.guessedLetters.contains(symbol)
+                                val isGuessed = labMeltdownState.guessedLetters.contains(symbol)
                                 val isCorrect = isGuessed && targetWord.contains(symbol)
 
                                 LabKeyTile(
@@ -799,7 +815,7 @@ fun HangmanScreen(
 
         // 9. USER LOSES MELTDOWN ANIMATION (ON TOP OF EVERYTHING: Hero, Keyboard, Header, Scene)
         UserLosesOverlay(
-            isLossActive = isUserLosesSequenceActive,
+            isLossActive = isUserLosesSequenceActive && !(uiState.isFinished && showResultModal),
             onAnimationComplete = { isDoorSequenceStable = true }
         )
 
@@ -1797,21 +1813,14 @@ private fun UserLosesOverlay(
     LaunchedEffect(Unit) {
         val fpsMs = 1000L / 15L
 
-        // Phase 1: Slime Drip (30 frames @ 15fps)
-        animPhase = 1
+        // Combined 30-frame sequence: Slime drips 0->29, doors start closing at frame 12 and finish at frame 29
         for (i in 0 until 30) {
+            animPhase = if (i < 12) 1 else 2
             currentFrameIndex = i
             delay(fpsMs)
         }
 
-        // Phase 2: Doors Close (18 frames @ 15fps)
-        animPhase = 2
-        for (i in 0 until 18) {
-            currentFrameIndex = i
-            delay(fpsMs)
-        }
-
-        // Phase 3: Shut Hazard Loop (24 frames @ 15fps loop)
+        // Phase 3: Shut Hazard Loop (Doors fully shut, hazard flashing)
         animPhase = 3
         onAnimationComplete()
 
@@ -1827,7 +1836,8 @@ private fun UserLosesOverlay(
     val rightOffsets = listOf(330f, 330f, 330f, 330f, 328f, 321f, 309f, 293f, 273f, 248f, 218f, 183f, 144f, 101f, 53f, 0f, 10f, 0f)
     val frameAlphas = listOf(0.25f, 0.5f, 0.8f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f)
 
-    val slimeIdx = if (animPhase == 1) currentFrameIndex else 29
+    // During phase 1 and 2, slime progresses from frame 0 to 29
+    val slimeIdx = if (animPhase == 1) currentFrameIndex else currentFrameIndex.coerceIn(0, 29)
     val formattedSlime = if (slimeIdx < 10) "00$slimeIdx" else if (slimeIdx < 100) "0$slimeIdx" else "$slimeIdx"
     val slimePath = "games/lab_meltdown/animations/user_loses/slime/slime_$formattedSlime.png"
 
@@ -1843,93 +1853,68 @@ private fun UserLosesOverlay(
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val screenW = this.maxWidth
-        val screenH = this.maxHeight
+        val scaleX = screenW.value / 851f
 
-        // Uniform ContentScale.Crop transformation matrix matching lab_meltdown_bg.png exactly
-        val scale = maxOf(screenW.value / 851f, screenH.value / 1849f)
-        val offsetX = (screenW.value - 851f * scale) / 2f
-        val offsetY = (screenH.value - 1849f * scale) / 2f
-
-        // 1. SLIME LAYER
+        // 1. SLIME LAYER (Full screen 851x1849)
         if (animPhase <= 2 && slimeBitmap != null) {
             Image(
                 bitmap = slimeBitmap,
                 contentDescription = "Slime Drip",
-                modifier = Modifier
-                    .offset(x = offsetX.dp, y = offsetY.dp)
-                    .size(width = (851f * scale).dp, height = (1849f * scale).dp),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds
             )
         }
 
         // 2. BLAST DOORS & FRAME
         if (animPhase >= 2) {
-            val frameIdx = currentFrameIndex.coerceIn(0, 17)
-            val currentAlpha = if (animPhase == 2) frameAlphas[frameIdx] else 1.0f
-            val leftOffX = if (animPhase == 2) leftOffsets[frameIdx] else 0f
-            val rightOffX = if (animPhase == 2) rightOffsets[frameIdx] else 0f
+            val doorFrameIdx = if (animPhase == 2) (currentFrameIndex - 12).coerceIn(0, 17) else 17
+            val currentAlpha = frameAlphas[doorFrameIdx]
+            val leftOffX = leftOffsets[doorFrameIdx]
+            val rightOffX = rightOffsets[doorFrameIdx]
 
-            val leftX = (offsetX + (88f + leftOffX) * scale).dp
-            val rightX = (offsetX + (433f + rightOffX) * scale).dp
-            val doorY = (offsetY + 176f * scale).dp
-            val leftW = (343f * scale).dp
-            val rightW = (330f * scale).dp
-            val doorH = (1479f * scale).dp
-
-            // Left Blast Door Leaf
-            if (doorLeftBitmap != null) {
-                Box(
+            // Left Blast Door Leaf (Full screen 851x1849 with slide offset)
+            if (doorLeftBitmap != null && (animPhase == 3 || currentFrameIndex >= 12)) {
+                Image(
+                    bitmap = doorLeftBitmap,
+                    contentDescription = "Left Blast Door",
                     modifier = Modifier
-                        .offset(x = leftX, y = doorY)
-                        .size(width = leftW, height = doorH)
-                ) {
-                    Image(
-                        bitmap = doorLeftBitmap,
-                        contentDescription = "Left Blast Door",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.FillBounds
-                    )
-                }
+                        .fillMaxSize()
+                        .offset(x = (leftOffX * scaleX).dp),
+                    contentScale = ContentScale.FillBounds
+                )
             }
 
-            // Right Blast Door Leaf
-            if (doorRightBitmap != null) {
-                Box(
+            // Right Blast Door Leaf (Full screen 851x1849 with slide offset)
+            if (doorRightBitmap != null && (animPhase == 3 || currentFrameIndex >= 12)) {
+                Image(
+                    bitmap = doorRightBitmap,
+                    contentDescription = "Right Blast Door",
                     modifier = Modifier
-                        .offset(x = rightX, y = doorY)
-                        .size(width = rightW, height = doorH)
-                ) {
-                    Image(
-                        bitmap = doorRightBitmap,
-                        contentDescription = "Right Blast Door",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.FillBounds
-                    )
-                }
+                        .fillMaxSize()
+                        .offset(x = (rightOffX * scaleX).dp),
+                    contentScale = ContentScale.FillBounds
+                )
             }
 
-            // Static Door Frame
+            // Static Door Frame (Full screen 851x1849)
             if (frameBitmap != null) {
                 Image(
                     bitmap = frameBitmap,
                     contentDescription = "Door Frame",
                     modifier = Modifier
-                        .offset(x = offsetX.dp, y = offsetY.dp)
-                        .size(width = (851f * scale).dp, height = (1849f * scale).dp)
+                        .fillMaxSize()
                         .graphicsLayer { this.alpha = currentAlpha },
                     contentScale = ContentScale.FillBounds
                 )
             }
         }
 
-        // 3. HAZARD WARNING LIGHT FLASHES
+        // 3. HAZARD WARNING LIGHT FLASHES (Full screen 851x1849)
         if (animPhase == 3 && hazardBitmap != null) {
             Image(
                 bitmap = hazardBitmap,
                 contentDescription = "Hazard Light Flashes",
-                modifier = Modifier
-                    .offset(x = offsetX.dp, y = offsetY.dp)
-                    .size(width = (851f * scale).dp, height = (1849f * scale).dp),
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds
             )
         }
@@ -2036,7 +2021,7 @@ private fun ResultOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.85f)),
+            .background(Color(0xFF030712)),
         contentAlignment = Alignment.Center
     ) {
         Column(

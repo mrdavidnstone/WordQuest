@@ -1,6 +1,6 @@
 {
   "background": "lab_meltdown_bg.png (851x1849)",
-  "overlays": "1x/ = full-canvas 851x1849 transparent PNGs, drop-in replacements for the old 1.png-7.png. 4x/ = same overlays at 3404x7396 for a 4x background. flat/ = un-warped artwork (1500x1440).",
+  "overlays": "1x/ = full-canvas 851x1849 transparent PNGs, files 0.png-7.png. 4x/ = same overlays at 3404x7396 for a 4x background. flat/ = un-warped artwork (1500x1440).",
   "draw_at_xy": [
     0,
     0
@@ -28,38 +28,35 @@
     ]
   },
   "statuses": {
-    "1": {
-      "mistakes": "0/6",
+    "0": {
       "label": "STABLE",
       "color": "green"
     },
-    "2": {
-      "mistakes": "1/6",
+    "1": {
       "label": "MINOR ISSUE",
       "color": "lime green"
     },
-    "3": {
-      "mistakes": "2/6",
+    "2": {
       "label": "UNSTABLE",
       "color": "yellow"
     },
-    "4": {
-      "mistakes": "3/6",
+    "3": {
       "label": "MALFUNCTION",
       "color": "orange"
     },
-    "5": {
-      "mistakes": "4/6",
+    "4": {
       "label": "CRITICAL",
       "color": "deep orange"
     },
-    "6": {
-      "mistakes": "5/6",
+    "5": {
       "label": "DANGER",
       "color": "red"
     },
+    "6": {
+      "label": "EMERGENCY",
+      "color": "hot pink / magenta"
+    },
     "7": {
-      "mistakes": "6/6",
       "label": "LAB MELTDOWN",
       "color": "crimson red"
     }
