@@ -139,13 +139,15 @@ fun PirateBlasterScreen(
         val scene1Bitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/scene1.png") }
         val foregroundBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/foreground.png") }
 
-        // Adjustable background settings
+        // Adjustable settings (Background zoom, speed, positioning, and avatar placement)
         var backgroundScrollSpeed by remember { mutableFloatStateOf(4f) }
         var backgroundVerticalOffset by remember { mutableFloatStateOf(50f) } // Positive moves the background down
+        var zoomFactor by remember { mutableFloatStateOf(6.0f) } // Much closer/larger background matching concept art
+        var avatarBottomPadding by remember { mutableFloatStateOf(16f) } // Lower down near bottom edge
+        var avatarEndPadding by remember { mutableFloatStateOf(4f) }
 
         val density = LocalDensity.current.density
-        val zoomFactor = 3.0f
-        val imageW = remember(canvasH, density) { 9600f * ((canvasH.value * zoomFactor) / 1080f) }
+        val imageW = remember(canvasH, density, zoomFactor) { 9600f * ((canvasH.value * zoomFactor) / 1080f) }
         val imageWDp = remember(imageW, density) { (imageW / density).dp }
         val scaledH = canvasH * zoomFactor
         val verticalOffset = ((canvasH.value - scaledH.value) / 2f) + backgroundVerticalOffset
@@ -247,6 +249,7 @@ fun PirateBlasterScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(if (bitmapWidth > 0f && bitmapHeight > 0f) bitmapWidth / bitmapHeight else (16f / 9f))
+                        .offset(y = 24.dp)
                         .graphicsLayer {
                             translationY = dockOffsetY
                             rotationZ = dockRotation
@@ -323,7 +326,7 @@ fun PirateBlasterScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 8.dp, bottom = 48.dp)
+                .padding(end = avatarEndPadding.dp, bottom = avatarBottomPadding.dp)
                 .zIndex(2f)
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
@@ -374,7 +377,7 @@ fun PirateBlasterScreen(
                 val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
                 HeroSprite(
                     config = heroConfig,
-                    modifier = Modifier.height(30.dp),
+                    modifier = Modifier.height(20.dp),
                     animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
                     sway = false,
                     breath = false
