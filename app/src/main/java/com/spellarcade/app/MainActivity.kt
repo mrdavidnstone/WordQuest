@@ -1,5 +1,6 @@
 ﻿package com.spellarcade.app
 
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +17,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        window.navigationBarColor = Color.BLACK
+        window.statusBarColor = Color.BLACK
         setContent {
             SpellArcadeTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {

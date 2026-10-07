@@ -145,7 +145,6 @@ fun PirateBlasterScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0F172A))
-            .systemBarsPadding()
     ) {
         val canvasW = this.maxWidth
         val canvasH = this.maxHeight
@@ -159,10 +158,11 @@ fun PirateBlasterScreen(
         var zoomFactor by remember { mutableFloatStateOf(1.0f) }           // 1.0 = exact height, higher = zoom in
         var backgroundVerticalOffset by remember { mutableFloatStateOf(-50f) } // dp (0 = aligned to top)
         var seamOffset by remember { mutableFloatStateOf(-724f) }              // negative = pull copies closer (try -2f to -8f)
-        var heroBottomPadding by remember { mutableFloatStateOf(100f) }
-        var heroEndPadding by remember { mutableFloatStateOf(100f) }
+        var heroBottomPadding by remember { mutableFloatStateOf(16f) }
+        var heroEndPadding by remember { mutableFloatStateOf(16f) }
         var parrotBottomPadding by remember { mutableFloatStateOf(155f) }
         var parrotStartPadding by remember { mutableFloatStateOf(5f) }
+        var foregroundWidthScale by remember { mutableFloatStateOf(1.02f) } // 1.02 = slightly wider to cover edge gaps
 // ===============================================================
 
         val density = LocalDensity.current
@@ -238,7 +238,7 @@ fun PirateBlasterScreen(
             }
         }
 
-        // ===================== FOREGROUND DOCK =====================
+        // ===================== FOREGROUND DOCK & PARROT =====================
         if (foregroundBitmap != null) {
             val bitmapWidth = foregroundBitmap.width.toFloat()
             val bitmapHeight = foregroundBitmap.height.toFloat()
@@ -249,49 +249,115 @@ fun PirateBlasterScreen(
                     .zIndex(1f),
                 contentAlignment = Alignment.BottomCenter
             ) {
-                Image(
-                    bitmap = foregroundBitmap,
-                    contentDescription = "Foreground Dock",
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(
-                            if (bitmapWidth > 0f && bitmapHeight > 0f)
-                                bitmapWidth / bitmapHeight
-                            else 16f / 9f
-                        )
-                        .offset(y = 24.dp)
+                        .fillMaxWidth(foregroundWidthScale)
+                        .offset(y = 0.dp)
                         .graphicsLayer {
-                            scaleX = 1.0f
-                            scaleY = 1.0f
                             translationY = dockOffsetY
                             rotationZ = dockRotation
                             transformOrigin = TransformOrigin(0.5f, 1.0f)
-                        },
-                    contentScale = ContentScale.FillBounds
-                )
-            }
-        }
+                        }
+                ) {
+                    Image(
+                        bitmap = foregroundBitmap,
+                        contentDescription = "Foreground Dock",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(
+                                if (bitmapWidth > 0f && bitmapHeight > 0f)
+                                    bitmapWidth / bitmapHeight
+                                else 16f / 9f
+                            ),
+                        contentScale = ContentScale.FillWidth
+                    )
 
-        // PIRATE PARROT PERCHED ON LEFT DOCK POST (Synchronized with dock rocking, zIndex 2f)
-        if (parrotBitmap != null) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .offset(x = parrotStartPadding.dp, y = (-parrotBottomPadding).dp)
-                    .zIndex(2f)
-                    .graphicsLayer {
-                        translationY = dockOffsetY
-                        rotationZ = dockRotation
-                        transformOrigin = TransformOrigin(0.5f, 1.0f)
+                    // PIRATE PARROT PERCHED ON LEFT DOCK POST (Synchronized inside dock rocking container)
+                    if (parrotBitmap != null) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .offset(x = parrotStartPadding.dp, y = (-parrotBottomPadding).dp)
+                        ) {
+                            ParrotSprite(
+                                bitmap = parrotBitmap,
+                                height = 68.dp,
+                                cheerCount = cheerCount,
+                                missCount = missCount,
+                                celebrate = uiState.isFinished && uiState.score >= uiState.total
+                            )
+                        }
                     }
-            ) {
-                ParrotSprite(
-                    bitmap = parrotBitmap,
-                    height = 68.dp,
-                    cheerCount = cheerCount,
-                    missCount = missCount,
-                    celebrate = uiState.isFinished && uiState.score >= uiState.total
-                )
+
+                    // CANNON + HERO + COMPANION (Nested directly inside dock container!)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .offset(
+                                x = (-heroEndPadding).dp,
+                                y = (-heroBottomPadding).dp
+                            )
+                    ) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            // Pirate Companion
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                galleryState.pirateSpeech?.let { speech ->
+                                    Surface(
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = Color(0xFF0F172A).copy(alpha = 0.9f),
+                                        border = BorderStroke(1.dp, Color(0xFFF59E0B))
+                                    ) {
+                                        Text(
+                                            speech,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.height(2.dp))
+                                }
+                            }
+
+                            Spacer(Modifier.width(6.dp))
+
+                            // Cannon
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 44.dp, height = 26.dp)
+                                    .rotate(galleryState.cannonAngle)
+                                    .background(Color(0xFF334155), RoundedCornerShape(8.dp))
+                                    .border(1.5.dp, Color(0xFFF59E0B), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(start = 3.dp)
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF0F172A))
+                                )
+                            }
+
+                            Spacer(Modifier.width(6.dp))
+
+                            // Hero
+                            val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
+                            HeroSprite(
+                                config = heroConfig,
+                                modifier = Modifier
+                                    .height(48.dp)
+                                    .graphicsLayer {
+                                        scaleX = 0.45f
+                                        scaleY = 0.45f
+                                    },
+                                animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
+                                sway = true,
+                                breath = false
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -357,85 +423,12 @@ fun PirateBlasterScreen(
             )
         }
 
-        // ===================== CANNON + HERO + PARROT =====================
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(
-                    x = heroEndPadding.dp,
-                    y = (-heroBottomPadding).dp
-                )
-                .zIndex(2f)
-                .graphicsLayer {
-                    translationY = dockOffsetY
-                }
-        ) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                // Pirate Companion
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    galleryState.pirateSpeech?.let { speech ->
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color(0xFF0F172A).copy(alpha = 0.9f),
-                            border = BorderStroke(1.dp, Color(0xFFF59E0B))
-                        ) {
-                            Text(
-                                speech,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                            )
-                        }
-                        Spacer(Modifier.height(2.dp))
-                    }
-//                    Text("🦜🏴‍☠️", fontSize = 18.sp)
-                }
-
-                Spacer(Modifier.width(6.dp))
-
-                // Cannon
-                Box(
-                    modifier = Modifier
-                        .size(width = 44.dp, height = 26.dp)
-                        .rotate(galleryState.cannonAngle)
-                        .background(Color(0xFF334155), RoundedCornerShape(8.dp))
-                        .border(1.5.dp, Color(0xFFF59E0B), RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(start = 3.dp)
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF0F172A))
-                    )
-                }
-
-                Spacer(Modifier.width(6.dp))
-
-                // Hero
-                val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
-                HeroSprite(
-                    config = heroConfig,
-                    modifier = Modifier
-                        .height(48.dp)
-                        .graphicsLayer {
-                            scaleX = 0.45f
-                            scaleY = 0.45f
-                        },
-                    animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
-                    sway = true,
-                    breath = false
-                )
-            }
-        }
-
         // ===================== WORD DISPLAY =====================
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 16.dp)
+                .systemBarsPadding()
                 .zIndex(2f)
         ) {
             Surface(
@@ -473,6 +466,7 @@ fun PirateBlasterScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .systemBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp)
                 .zIndex(2f),
             verticalAlignment = Alignment.CenterVertically,
