@@ -39,6 +39,7 @@ import com.spellarcade.app.data.model.AvatarConfig
 import com.spellarcade.app.ui.components.ReadyOverlay
 import com.spellarcade.app.ui.components.avatar.HeroAnimationState
 import com.spellarcade.app.ui.components.avatar.HeroSprite
+import com.spellarcade.app.ui.screens.profile.character.CharacterLayerType
 import com.spellarcade.app.util.MusicManager
 import kotlinx.coroutines.delay
 
@@ -157,10 +158,10 @@ fun PirateBlasterScreen(
         var backgroundScrollSpeed by remember { mutableFloatStateOf(105f) }   // pixels per second
         var zoomFactor by remember { mutableFloatStateOf(1.0f) }           // 1.0 = exact height, higher = zoom in
         var backgroundVerticalOffset by remember { mutableFloatStateOf(-50f) } // dp (0 = aligned to top)
-        var seamOffset by remember { mutableFloatStateOf(-724f) }              // negative = pull copies closer (try -2f to -8f)
-        var heroBottomPadding by remember { mutableFloatStateOf(16f) }
-        var heroEndPadding by remember { mutableFloatStateOf(16f) }
-        var parrotBottomPadding by remember { mutableFloatStateOf(155f) }
+        var seamOffset by remember { mutableFloatStateOf(-735f) }              // negative = pull copies closer (try -2f to -8f)
+        var heroBottomPadding by remember { mutableFloatStateOf(130f) }
+        var heroEndPadding by remember { mutableFloatStateOf(-60f) }
+        var parrotBottomPadding by remember { mutableFloatStateOf(165f) }
         var parrotStartPadding by remember { mutableFloatStateOf(5f) }
         var foregroundWidthScale by remember { mutableFloatStateOf(1.02f) } // 1.02 = slightly wider to cover edge gaps
 // ===============================================================
@@ -243,27 +244,33 @@ fun PirateBlasterScreen(
             val bitmapWidth = foregroundBitmap.width.toFloat()
             val bitmapHeight = foregroundBitmap.height.toFloat()
 
+            val extraWidth = 60.dp
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                     .fillMaxSize()
                     .zIndex(1f),
                 contentAlignment = Alignment.BottomCenter
             ) {
+
+
+
                 Box(
+
                     modifier = Modifier
-                        .fillMaxWidth(foregroundWidthScale)
-                        .offset(y = 0.dp)
+                         .fillMaxSize()
+                        .offset(y = 50.dp)
                         .graphicsLayer {
                             translationY = dockOffsetY
                             rotationZ = dockRotation
                             transformOrigin = TransformOrigin(0.5f, 1.0f)
                         }
                 ) {
+
                     Image(
                         bitmap = foregroundBitmap,
                         contentDescription = "Foreground Dock",
                         modifier = Modifier
-                            .fillMaxWidth()
+                             .fillMaxSize()
                             .aspectRatio(
                                 if (bitmapWidth > 0f && bitmapHeight > 0f)
                                     bitmapWidth / bitmapHeight
@@ -352,8 +359,15 @@ fun PirateBlasterScreen(
                                         scaleY = 0.45f
                                     },
                                 animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
-                                sway = true,
-                                breath = false
+                                sway = false,
+                                breath = false,
+                                overrideTopPath = "sprites/special/pirate_blaster/pirate_blaster_clothes.png",
+                                layerVisibility = mapOf(
+                                    CharacterLayerType.HAIR to false,
+                                    CharacterLayerType.HAT to false,
+                                    CharacterLayerType.SHOES to false,
+                                    CharacterLayerType.BOTTOM to false
+                                )
                             )
                         }
                     }
