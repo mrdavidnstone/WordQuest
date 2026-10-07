@@ -1,12 +1,12 @@
-Add-Type -AssemblyName System.Drawing
+﻿Add-Type -AssemblyName System.Drawing
 
-$spritePath = "C:\Android\SpellingGames\app\src\main\assets\sprite.png"
+$spritePath = "C:\Android\SpellArcade\app\src\main\assets\sprite.png"
 if (-not (Test-Path $spritePath)) {
     $spritePath = "C:\Users\demol\Downloads\sprite2.png"
 }
 
 $img = [System.Drawing.Image]::FromFile($spritePath)
-$baseDir = "C:\Android\SpellingGames\app\src\main\assets\sprites"
+$baseDir = "C:\Android\SpellArcade\app\src\main\assets\sprites"
 
 $dirs = @(
     "base_body",

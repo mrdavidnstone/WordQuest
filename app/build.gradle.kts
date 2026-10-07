@@ -1,4 +1,4 @@
-plugins {
+﻿plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.spellinggames.app"
+    namespace = "com.spellarcade.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.spellinggames.app"
+        applicationId = "com.spellarcade.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

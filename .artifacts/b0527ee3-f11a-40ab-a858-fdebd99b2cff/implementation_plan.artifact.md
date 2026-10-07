@@ -1,4 +1,4 @@
-# Word Defender Monster Movement Fix
+﻿# Word Defender Monster Movement Fix
 
 Fix the monster movement system to ensure monsters move continuously and smoothly towards the castle, independent of the spelling progress.
 
@@ -11,14 +11,14 @@ Fix the monster movement system to ensure monsters move continuously and smoothl
 
 ### [app]
 
-#### [MODIFY] [WordDefenderViewModel.kt](file:///C:/Android/SpellingGames/app/src/main/java/com/spellinggames/app/ui/screens/games/WordDefenderViewModel.kt)
+#### [MODIFY] [WordDefenderViewModel.kt](file:///C:/Android/SpellArcade/app/src/main/java/com/SpellArcade/app/ui/screens/games/WordDefenderViewModel.kt)
 - Add `baseMonsterSpeed` to the state/repository for configurability.
 - Update `updatePhysics` to run in more phases (like `WORD_COMPLETE`) to prevent freezing.
 - Modify `startWord` to avoid clearing all monsters immediately, allowing smooth transitions.
 - Implement the "target" logic where monsters move specifically towards the castle base.
 - Add debug information to the UI state (monster count, average distance, etc.).
 
-#### [MODIFY] [WordDefenderScreen.kt](file:///C:/Android/SpellingGames/app/src/main/java/com/spellinggames/app/ui/screens/games/WordDefenderScreen.kt)
+#### [MODIFY] [WordDefenderScreen.kt](file:///C:/Android/SpellArcade/app/src/main/java/com/SpellArcade/app/ui/screens/games/WordDefenderScreen.kt)
 - Add a debug overlay toggle/display showing monster speed and distance.
 - Ensure the rendering logic supports smooth frame-based updates (which it mostly does, but I'll double-check the `SnapshotStateList` observation).
 

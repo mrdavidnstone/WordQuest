@@ -1,2 +1,2 @@
-# Keep Room entities
--keep class com.spellinggames.app.data.local.** { *; }
+﻿# Keep Room entities
+-keep class com.spellarcade.app.data.local.** { *; }

@@ -1,4 +1,4 @@
-# Spelling Games — Android App
+﻿# Spelling Games — Android App
 
 A fun, offline-first Android spelling practice app for kids.  
 One shared spelling-list system powers multiple different games.
@@ -63,7 +63,7 @@ The APK will be at:
 ## Project structure
 
 ```
-app/src/main/java/com/spellinggames/app/
+app/src/main/java/com/SpellArcade/app/
 ├── data/          # Room entities, DAOs, repositories
 ├── di/            # Hilt modules
 ├── domain/        # (ready for use-cases)

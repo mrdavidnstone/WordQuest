@@ -1,4 +1,4 @@
-$baseDir = "C:\Android\SpellingGames\app\src\main\assets\sprites"
+﻿$baseDir = "C:\Android\SpellArcade\app\src\main\assets\sprites"
 
 $dirs = @("base_body", "top\gray", "bottom\khaki", "shoes", "special", "hats")
 foreach ($d in $dirs) {
