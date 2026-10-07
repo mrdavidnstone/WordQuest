@@ -164,6 +164,7 @@ fun PirateBlasterScreen(
         var parrotBottomPadding by remember { mutableFloatStateOf(165f) }
         var parrotStartPadding by remember { mutableFloatStateOf(5f) }
         var foregroundWidthScale by remember { mutableFloatStateOf(1.02f) } // 1.02 = slightly wider to cover edge gaps
+        var foregroundScale by remember { mutableFloatStateOf(1.12f) } // Overscan/bleed scale to cover edges during rocking rotation
 // ===============================================================
 
         val density = LocalDensity.current
@@ -260,6 +261,8 @@ fun PirateBlasterScreen(
                          .fillMaxSize()
                         .offset(y = 50.dp)
                         .graphicsLayer {
+                            scaleX = foregroundScale
+                            scaleY = foregroundScale
                             translationY = dockOffsetY
                             rotationZ = dockRotation
                             transformOrigin = TransformOrigin(0.5f, 1.0f)
