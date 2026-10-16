@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "note": "Sprite-sheet descriptor for Pirate Blaster. Not a Lottie file.",
+  "sprites": {
+    "cannon_aim_left_right": {
+      "image": "cannon_aim_left_right_sheet.png",
+      "frameWidth": 1124,
+      "frameHeight": 831,
+      "columns": 9,
+      "rows": 1,
+      "frameCount": 9,
+      "frameAnglesDeg": [
+        -40,
+        -30,
+        -20,
+        -10,
+        0,
+        10,
+        20,
+        30,
+        40
+      ],
+      "meaning": "angle of barrel; negative = aim left, positive = aim right; pick nearest frame to the aim angle",
+      "loop": false
+    },
+    "cannon_aim_up_down": {
+      "image": "cannon_aim_up_down_sheet.png",
+      "frameWidth": 1124,
+      "frameHeight": 831,
+      "columns": 5,
+      "rows": 1,
+      "frameCount": 5,
+      "frameElevation": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "meaning": "0 = level, 4 = most raised",
+      "loop": false
+    },
+    "cannonball_spin": {
+      "image": "cannonball_spin_sheet.png",
+      "frameWidth": 512,
+      "frameHeight": 512,
+      "columns": 4,
+      "rows": 4,
+      "frameCount": 16,
+      "frameDurationMs": 60,
+      "loop": true,
+      "meaning": "play frames 0-15 in order, repeat while the ball is in flight"
+    }
+  }
+}

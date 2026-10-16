@@ -13,8 +13,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.math.atan2
+import kotlin.math.hypot
 
-enum class PirateTargetState { IDLE, AIMED, HIT_CORRECT, HIT_INCORRECT }
+enum class PirateTargetState { IDLE, AIMED, HIT_CORRECT, HIT_INCORRECT, DESTROYED }
 
 data class PirateTarget(
     val id: String,
@@ -27,7 +28,7 @@ data class PirateTarget(
 data class PirateCannonShot(
     val startRatio: Offset,
     val targetRatio: Offset,
-    val target: PirateTarget,
+    val target: PirateTarget?,
     val progress: Float
 )
 
@@ -37,7 +38,7 @@ data class PirateBlasterUiState(
     val currentPointer: Int = 0,
     val targets: List<PirateTarget> = emptyList(),
     val activeShot: PirateCannonShot? = null,
-    val cannonAngle: Float = 0f,
+    val cannonAngle: Float = -90f,
     val missesCount: Int = 0,
     val isFiring: Boolean = false,
     val isResolving: Boolean = false,
@@ -114,11 +115,62 @@ class PirateBlasterViewModel @Inject constructor(
         }
     }
 
+    fun fireAtPoint(ratioX: Float, ratioY: Float) {
+        val state = _blasterState.value
+        if (state.isFiring || state.isResolving || uiState.value.showFeedback || uiState.value.isFinished) return
+
+        val cannonPos = Offset(0.50f, 0.82f)
+        val targetPos = Offset(ratioX, ratioY)
+        val dx = targetPos.x - cannonPos.x
+        val dy = targetPos.y - cannonPos.y
+        val angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+
+        val clickedTarget = state.targets.filter { it.state != PirateTargetState.DESTROYED }.find { t ->
+            val dist = hypot((t.positionRatio.x - ratioX).toDouble(), (t.positionRatio.y - ratioY).toDouble())
+            dist < 0.12
+        }
+
+        if (clickedTarget != null) {
+            fireAtTarget(clickedTarget)
+            return
+        }
+
+        _blasterState.update {
+            it.copy(
+                isFiring = true,
+                cannonAngle = angleDeg,
+                activeShot = PirateCannonShot(startRatio = cannonPos, targetRatio = targetPos, target = null, progress = 0f)
+            )
+        }
+
+        viewModelScope.launch {
+            val durationMs = 350L
+            val steps = 15
+            val stepDelay = durationMs / steps
+
+            for (i in 1..steps) {
+                delay(stepDelay)
+                val p = i.toFloat() / steps
+                _blasterState.update { cur ->
+                    val shot = cur.activeShot ?: return@update cur
+                    cur.copy(activeShot = shot.copy(progress = p))
+                }
+            }
+
+            _blasterState.update {
+                it.copy(
+                    isFiring = false,
+                    activeShot = null
+                )
+            }
+        }
+    }
+
     fun fireAtTarget(target: PirateTarget) {
         val state = _blasterState.value
         if (state.isFiring || state.isResolving || uiState.value.showFeedback || uiState.value.isFinished) return
 
-        val cannonPos = Offset(0.18f, 0.72f)
+        val cannonPos = Offset(0.50f, 0.82f)
         val dx = target.positionRatio.x - cannonPos.x
         val dy = target.positionRatio.y - cannonPos.y
         val angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
@@ -178,7 +230,7 @@ class PirateBlasterViewModel @Inject constructor(
             }
 
             viewModelScope.launch {
-                delay(800)
+                delay(750) // Wait for 15-frame explosion animation @ 20fps
                 if (nextPointer >= state.missingIndices.size) {
                     submitAnswer(true)
                 } else {
@@ -212,13 +264,13 @@ class PirateBlasterViewModel @Inject constructor(
             }
 
             viewModelScope.launch {
-                delay(600)
+                delay(750) // Wait for 15-frame explosion animation @ 20fps
                 _blasterState.update { cur ->
-                    val resetTargets = cur.targets.map { t ->
-                        if (t.id == target.id) t.copy(state = PirateTargetState.IDLE) else t
+                    val destroyedTargets = cur.targets.map { t ->
+                        if (t.id == target.id) t.copy(state = PirateTargetState.DESTROYED) else t
                     }
                     cur.copy(
-                        targets = resetTargets,
+                        targets = destroyedTargets,
                         isResolving = false
                     )
                 }

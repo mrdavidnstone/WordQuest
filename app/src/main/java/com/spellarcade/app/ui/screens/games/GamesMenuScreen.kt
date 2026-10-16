@@ -32,7 +32,7 @@ data class GameInfo(
 val allGames = listOf(
     GameInfo("listen_spell", "Listen & Spell", "🎧", "Spell the word you hear", Color(0xFF00B0FF), "Spelling"),
     GameInfo("hangman", "Lab Meltdown", "🧪", "Prevent the lab meltdown!", Color(0xFF9333EA), "Spelling", iconAsset = "games/lab_meltdown/lab_meltdown_icon.png"),
-    GameInfo("pirate_blaster", "Pirate Blaster", "🏴‍☠️", "Aim the cannon and blast the barrel letters!", Color(0xFFD97706), "Spelling", iconAsset = "games/word_gallery/pirate_word_blaster/background.png"),
+    GameInfo("pirate_blaster", "Pirate Blaster", "🏴‍☠️", "Aim the cannon and blast the barrel letters!", Color(0xFFD97706), "Spelling", iconAsset = "games/pirate_blaster/pirate_blaster_icon.png"),
     GameInfo("missing_letters", "Missing Letters", "🔤", "Fill in the blanks", Color(0xFF00E676), "Spelling"),
     GameInfo("word_gallery", "Word Gallery", "🖼️", "Restore the missing exhibit letters!", Color(0xFFEC4899), "Spelling", iconAsset = "games/word_gallery/word_gallery_icon.png"),
     GameInfo("scrambled", "Scrambled Word", "🔀", "Unscramble the letters", Color(0xFFFF6D00), "Spelling"),
