@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.spellarcade.app.data.repository.SettingsRepository
 import com.spellarcade.app.data.repository.SpellingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,11 +18,23 @@ import kotlin.math.hypot
 
 enum class PirateTargetState { IDLE, AIMED, HIT_CORRECT, HIT_INCORRECT, DESTROYED }
 
+data class SpawnItem(
+    val letter: Char,
+    val isCorrect: Boolean,
+    val requiredIndex: Int?,
+    val retriesLeft: Int
+)
+
 data class PirateTarget(
     val id: String,
     val letter: Char,
-    val positionRatio: Offset,
+    val x: Float,
+    val y: Float,
+    val scale: Float,
+    val speed: Float,
     val isCorrect: Boolean,
+    val requiredIndex: Int?,
+    val retriesLeft: Int,
     val state: PirateTargetState = PirateTargetState.IDLE
 )
 
@@ -37,6 +50,7 @@ data class PirateBlasterUiState(
     val missingIndices: List<Int> = emptyList(),
     val currentPointer: Int = 0,
     val targets: List<PirateTarget> = emptyList(),
+    val spawnQueue: List<SpawnItem> = emptyList(),
     val activeShot: PirateCannonShot? = null,
     val cannonAngle: Float = -90f,
     val missesCount: Int = 0,
@@ -54,6 +68,21 @@ class PirateBlasterViewModel @Inject constructor(
     private val _blasterState = MutableStateFlow(PirateBlasterUiState())
     val blasterState: StateFlow<PirateBlasterUiState> = _blasterState.asStateFlow()
 
+    private var gameLoopJob: Job? = null
+
+    init {
+        viewModelScope.launch {
+            uiState.collect { state ->
+                if (state.isReady && !state.isFinished && gameLoopJob == null) {
+                    startGameLoop()
+                } else if (!state.isReady || state.isFinished) {
+                    gameLoopJob?.cancel()
+                    gameLoopJob = null
+                }
+            }
+        }
+    }
+
     fun buildPuzzleForCurrentWord() {
         val word = uiState.value.currentWord?.text ?: return
         if (word.length < 2) return
@@ -69,50 +98,148 @@ class PirateBlasterViewModel @Inject constructor(
         val missingIndices = (word.indices).shuffled().take(numToHide).sorted()
         val maskedWord = word.mapIndexed { i, c -> if (i in missingIndices) '_' else c }
 
-        val firstMissingIdx = missingIndices[0]
-        val targetLetters = generateChoices(word[firstMissingIdx])
+        val retriesAllowed = when (level) {
+            1 -> 3 // Easy: 3 retries
+            2 -> 2 // Medium: 2 retries
+            3 -> 1 // Hard: 1 retry
+            else -> 3
+        }
 
-        val targets = createTargetsForChoices(targetLetters, word[firstMissingIdx])
+        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
+        val requiredItems = missingIndices.mapIndexed { reqIdx, wordIdx ->
+            val char = word[wordIdx]
+            SpawnItem(
+                letter = if (requireCaps) char else char.lowercaseChar(),
+                isCorrect = true,
+                requiredIndex = reqIdx,
+                retriesLeft = retriesAllowed
+            )
+        }
+
+        val correctChars = requiredItems.map { it.letter }.toSet()
+        val alphabet = if (requireCaps) ('A'..'Z').toList() else ('a'..'z').toList()
+        val distractors = alphabet.filter { it !in correctChars }.shuffled().take(6).map { ch ->
+            SpawnItem(
+                letter = ch,
+                isCorrect = false,
+                requiredIndex = null,
+                retriesLeft = 0
+            )
+        }
+
+        val spawnQueue = (requiredItems + distractors).shuffled()
 
         _blasterState.value = PirateBlasterUiState(
             maskedWord = maskedWord,
             missingIndices = missingIndices,
             currentPointer = 0,
-            targets = targets,
+            targets = emptyList(),
+            spawnQueue = spawnQueue,
             missesCount = 0,
-            pirateSpeech = "Arrr! Load the cannon and aim for the missing letter!"
+            isFiring = false,
+            isResolving = false,
+            pirateSpeech = "Arrr! Barrels ahoy! Aim for the missing letters!"
         )
     }
 
-    private fun generateChoices(correctChar: Char): List<Char> {
-        val word = uiState.value.currentWord?.text ?: ""
-        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
-        val targetChar = if (requireCaps) correctChar else correctChar.lowercaseChar()
-        val alphabet = if (requireCaps && correctChar.isUpperCase()) ('A'..'Z').toList() else ('a'..'z').toList()
-        val distractors = alphabet.filter { it != targetChar }.shuffled().take(3)
-        return (distractors + targetChar).shuffled()
+    private fun startGameLoop() {
+        gameLoopJob?.cancel()
+        gameLoopJob = viewModelScope.launch {
+            var lastTime = System.currentTimeMillis()
+            while (true) {
+                delay(16) // ~60fps
+                val currentTime = System.currentTimeMillis()
+                val delta = (currentTime - lastTime) / 1000f
+                lastTime = currentTime
+
+                if (delta in 0.001f..0.1f) {
+                    updateGameFrame(delta)
+                }
+            }
+        }
     }
 
-    private fun createTargetsForChoices(choices: List<Char>, correctChar: Char): List<PirateTarget> {
-        val word = uiState.value.currentWord?.text ?: ""
-        val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
+    private fun updateGameFrame(delta: Float) {
+        val state = _blasterState.value
+        if (state.isResolving || uiState.value.showFeedback || uiState.value.isFinished) return
 
-        val positions = listOf(
-            Offset(0.52f, 0.28f),
-            Offset(0.72f, 0.22f),
-            Offset(0.58f, 0.52f),
-            Offset(0.78f, 0.48f)
-        ).shuffled()
+        val difficulty = uiState.value.overallDifficulty
+        val speedRatioPerSec = when (difficulty) {
+            1 -> 0.12f // Easy: slowest
+            2 -> 0.18f // Medium: in between
+            3 -> 0.28f // Hard: quickest
+            else -> 0.18f
+        }
+        val moveDelta = speedRatioPerSec * delta
 
-        return choices.mapIndexed { idx, ch ->
-            val isMatch = if (requireCaps) ch == correctChar else ch.equals(correctChar, ignoreCase = true)
-            PirateTarget(
-                id = "target_$idx",
-                letter = ch,
-                positionRatio = positions[idx],
-                isCorrect = isMatch
+        val updatedTargets = mutableListOf<PirateTarget>()
+        val returnedItems = mutableListOf<SpawnItem>()
+
+        for (target in state.targets) {
+            if (target.state == PirateTargetState.HIT_CORRECT || target.state == PirateTargetState.HIT_INCORRECT || target.state == PirateTargetState.DESTROYED) {
+                updatedTargets.add(target)
+                continue
+            }
+
+            val newX = target.x - (moveDelta * (target.scale * 0.85f))
+            if (newX < -0.15f) {
+                if (target.isCorrect && target.retriesLeft > 0) {
+                    returnedItems.add(
+                        SpawnItem(
+                            letter = target.letter,
+                            isCorrect = true,
+                            requiredIndex = target.requiredIndex,
+                            retriesLeft = target.retriesLeft - 1
+                        )
+                    )
+                } else if (target.isCorrect && target.retriesLeft <= 0) {
+                    _blasterState.update { it.copy(missesCount = it.missesCount + 1) }
+                }
+            } else {
+                updatedTargets.add(target.copy(x = newX))
+            }
+        }
+
+        val activeBarrels = updatedTargets.filter { it.state == PirateTargetState.IDLE || it.state == PirateTargetState.AIMED }
+        var currentSpawnQueue = state.spawnQueue + returnedItems
+        val maxActiveBarrels = 3
+
+        if (activeBarrels.size < maxActiveBarrels && currentSpawnQueue.isNotEmpty()) {
+            val nextItem = currentSpawnQueue.first()
+            currentSpawnQueue = currentSpawnQueue.drop(1)
+            val newBarrel = spawnBarrel(nextItem)
+            updatedTargets.add(newBarrel)
+        }
+
+        _blasterState.update {
+            it.copy(
+                targets = updatedTargets.filter { t -> t.state != PirateTargetState.DESTROYED || t.x >= -0.15f },
+                spawnQueue = currentSpawnQueue
             )
         }
+    }
+
+    private fun spawnBarrel(item: SpawnItem): PirateTarget {
+        val tier = (0..2).random()
+        val (scale, yPos) = when (tier) {
+            0 -> 0.75f to 0.26f // Far
+            1 -> 1.05f to 0.40f // Mid
+            else -> 1.35f to 0.54f // Near
+        }
+
+        val id = "barrel_${System.currentTimeMillis()}_${(0..999).random()}"
+        return PirateTarget(
+            id = id,
+            letter = item.letter,
+            x = 1.15f,
+            y = yPos,
+            scale = scale,
+            speed = 0.20f,
+            isCorrect = item.isCorrect,
+            requiredIndex = item.requiredIndex,
+            retriesLeft = item.retriesLeft,
+            state = PirateTargetState.IDLE
+        )
     }
 
     fun fireAtPoint(ratioX: Float, ratioY: Float) {
@@ -120,20 +247,22 @@ class PirateBlasterViewModel @Inject constructor(
         if (state.isFiring || state.isResolving || uiState.value.showFeedback || uiState.value.isFinished) return
 
         val cannonPos = Offset(0.50f, 0.82f)
+        val clickedTarget = state.targets.filter { it.state == PirateTargetState.IDLE }.minByOrNull { t ->
+            hypot((t.x - ratioX).toDouble(), (t.y - ratioY).toDouble())
+        }
+
+        if (clickedTarget != null) {
+            val dist = hypot((clickedTarget.x - ratioX).toDouble(), (clickedTarget.y - ratioY).toDouble())
+            if (dist < 0.20) {
+                fireAtTarget(clickedTarget)
+                return
+            }
+        }
+
         val targetPos = Offset(ratioX, ratioY)
         val dx = targetPos.x - cannonPos.x
         val dy = targetPos.y - cannonPos.y
         val angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-
-        val clickedTarget = state.targets.filter { it.state != PirateTargetState.DESTROYED }.find { t ->
-            val dist = hypot((t.positionRatio.x - ratioX).toDouble(), (t.positionRatio.y - ratioY).toDouble())
-            dist < 0.12
-        }
-
-        if (clickedTarget != null) {
-            fireAtTarget(clickedTarget)
-            return
-        }
 
         _blasterState.update {
             it.copy(
@@ -144,8 +273,8 @@ class PirateBlasterViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            val durationMs = 350L
-            val steps = 15
+            val durationMs = 300L
+            val steps = 12
             val stepDelay = durationMs / steps
 
             for (i in 1..steps) {
@@ -169,23 +298,24 @@ class PirateBlasterViewModel @Inject constructor(
     fun fireAtTarget(target: PirateTarget) {
         val state = _blasterState.value
         if (state.isFiring || state.isResolving || uiState.value.showFeedback || uiState.value.isFinished) return
+        if (target.state != PirateTargetState.IDLE) return
 
         val cannonPos = Offset(0.50f, 0.82f)
-        val dx = target.positionRatio.x - cannonPos.x
-        val dy = target.positionRatio.y - cannonPos.y
+        val dx = target.x - cannonPos.x
+        val dy = target.y - cannonPos.y
         val angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
 
         _blasterState.update {
             it.copy(
                 isFiring = true,
                 cannonAngle = angleDeg,
-                activeShot = PirateCannonShot(startRatio = cannonPos, targetRatio = target.positionRatio, target = target, progress = 0f)
+                activeShot = PirateCannonShot(startRatio = cannonPos, targetRatio = Offset(target.x, target.y), target = target, progress = 0f)
             )
         }
 
         viewModelScope.launch {
-            val durationMs = 350L
-            val steps = 15
+            val durationMs = 300L
+            val steps = 12
             val stepDelay = durationMs / steps
 
             for (i in 1..steps) {
@@ -214,37 +344,48 @@ class PirateBlasterViewModel @Inject constructor(
             val newMasked = state.maskedWord.toMutableList()
             newMasked[targetIdx] = correctLetter
             val nextPointer = state.currentPointer + 1
+            val allRequiredHit = nextPointer >= state.missingIndices.size
 
-            _blasterState.update { cur ->
-                val updatedTargets = cur.targets.map { t ->
-                    if (t.id == target.id) t.copy(state = PirateTargetState.HIT_CORRECT) else t
+            if (allRequiredHit) {
+                // Word Completion Sequence: Trigger explosion animations for all active barrels currently on screen
+                _blasterState.update { cur ->
+                    val updatedTargets = cur.targets.map { t ->
+                        t.copy(state = PirateTargetState.HIT_CORRECT)
+                    }
+                    cur.copy(
+                        maskedWord = newMasked,
+                        targets = updatedTargets,
+                        isFiring = false,
+                        isResolving = true,
+                        activeShot = null,
+                        pirateSpeech = "ARRR! Word Complete! Magnificent shooting! 💥"
+                    )
                 }
-                cur.copy(
-                    maskedWord = newMasked,
-                    targets = updatedTargets,
-                    isFiring = false,
-                    isResolving = true,
-                    activeShot = null,
-                    pirateSpeech = "BLAST ME TIMBERS! Perfect Shot! 💥"
-                )
-            }
 
-            viewModelScope.launch {
-                delay(750) // Wait for 15-frame explosion animation @ 20fps
-                if (nextPointer >= state.missingIndices.size) {
+                viewModelScope.launch {
+                    delay(750) // Wait for 15-frame explosion animation @ 20fps
                     submitAnswer(true)
-                } else {
-                    val nextMissingIdx = state.missingIndices[nextPointer]
-                    val nextChoices = generateChoices(word[nextMissingIdx])
-                    val newTargets = createTargetsForChoices(nextChoices, word[nextMissingIdx])
-
+                }
+            } else {
+                _blasterState.update { cur ->
+                    val updatedTargets = cur.targets.map { t ->
+                        if (t.id == target.id) t.copy(state = PirateTargetState.HIT_CORRECT) else t
+                    }
+                    cur.copy(
+                        maskedWord = newMasked,
+                        currentPointer = nextPointer,
+                        targets = updatedTargets,
+                        isFiring = false,
+                        isResolving = false,
+                        activeShot = null,
+                        pirateSpeech = "Direct hit! Target the next missing letter!"
+                    )
+                }
+                viewModelScope.launch {
+                    delay(750)
                     _blasterState.update { cur ->
-                        cur.copy(
-                            currentPointer = nextPointer,
-                            targets = newTargets,
-                            isResolving = false,
-                            pirateSpeech = "Aim for the next missing letter, matey!"
-                        )
+                        val cleaned = cur.targets.filter { it.id != target.id }
+                        cur.copy(targets = cleaned)
                     }
                 }
             }
@@ -257,22 +398,17 @@ class PirateBlasterViewModel @Inject constructor(
                     targets = updatedTargets,
                     missesCount = cur.missesCount + 1,
                     isFiring = false,
-                    isResolving = true,
+                    isResolving = false,
                     activeShot = null,
-                    pirateSpeech = "ARRR! Missed that one! Try another barrel!"
+                    pirateSpeech = "ARRR! Wrong barrel! Try again!"
                 )
             }
 
             viewModelScope.launch {
-                delay(750) // Wait for 15-frame explosion animation @ 20fps
+                delay(750)
                 _blasterState.update { cur ->
-                    val destroyedTargets = cur.targets.map { t ->
-                        if (t.id == target.id) t.copy(state = PirateTargetState.DESTROYED) else t
-                    }
-                    cur.copy(
-                        targets = destroyedTargets,
-                        isResolving = false
-                    )
+                    val cleaned = cur.targets.filter { it.id != target.id }
+                    cur.copy(targets = cleaned)
                 }
             }
         }

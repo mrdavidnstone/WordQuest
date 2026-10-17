@@ -261,6 +261,7 @@ fun PirateBlasterScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF0F172A))
+            .navigationBarsPadding()
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     if (!galleryState.isFiring && !galleryState.isResolving && !uiState.showFeedback && !uiState.isFinished) {
@@ -284,12 +285,11 @@ fun PirateBlasterScreen(
         var zoomFactor by remember { mutableFloatStateOf(1.0f) }           // 1.0 = exact height, higher = zoom in
         var backgroundVerticalOffset by remember { mutableFloatStateOf(-50f) } // dp (0 = aligned to top)
         var heroBottomPadding by remember { mutableFloatStateOf(120f) }
-        var heroEndPadding by remember { mutableFloatStateOf(60f) } // Offset from right side
         var parrotBottomPadding by remember { mutableFloatStateOf(155f) }
         var parrotStartPadding by remember { mutableFloatStateOf(70f) }
         var foregroundWidthScale by remember { mutableFloatStateOf(1.02f) } // 1.02 = slightly wider to cover edge gaps
-        var foregroundScale by remember { mutableFloatStateOf(1.12f) } // Overscan/bleed scale to cover edges during rocking rotation
-        var seamOffset by remember { mutableFloatStateOf(-775f) } // Fine-tune loop gap (+ to add gap, - for overlap)
+        var foregroundScale by remember { mutableFloatStateOf(1.15f) } // Overscan/bleed scale to cover edges during rocking rotation
+        var seamOffset by remember { mutableFloatStateOf(-785f) } // Fine-tune loop gap (+ to add gap, - for overlap)
         var barrelLetterVerticalOffset by remember { mutableFloatStateOf(0f) } // Vertical offset for barrel letters (+ down, - up)
 // ===============================================================
 
@@ -366,6 +366,78 @@ fun PirateBlasterScreen(
             }
         }
 
+        // ===================== BARREL TARGETS =====================
+        galleryState.targets.filter { it.state != PirateTargetState.DESTROYED }.forEach { target ->
+            val targetX = canvasW * target.x
+            val targetY = (canvasH * target.y) + waveBob.dp
+
+            val isExploding = target.state == PirateTargetState.HIT_CORRECT || target.state == PirateTargetState.HIT_INCORRECT
+
+            if (isExploding) {
+                // Play 15-frame barrel explosion animation scaled to barrel size
+                BarrelExplosionOverlay(
+                    modifier = Modifier
+                        .offset(x = targetX - (42 * target.scale).dp, y = targetY - (42 * target.scale).dp)
+                        .zIndex(3f + target.scale),
+                    scale = target.scale
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .offset(x = targetX - (34 * target.scale).dp, y = targetY - (40 * target.scale).dp)
+                        .size(width = (68 * target.scale).dp, height = (80 * target.scale).dp)
+                        .zIndex(target.scale)
+                        .clickable(
+                            enabled = !galleryState.isFiring && !galleryState.isResolving && !uiState.showFeedback,
+                            onClick = { viewModel.fireAtTarget(target) }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Real Barrel Asset Image with Target Circle
+                    if (barrelBitmap != null) {
+                        Image(
+                            bitmap = barrelBitmap,
+                            contentDescription = "Barrel Target",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF78350F),
+                            border = BorderStroke(2.dp, Color(0xFFF59E0B)),
+                            modifier = Modifier.fillMaxSize()
+                        ) {}
+                    }
+
+                    // Weathered Stencil Letter centered over the painted white circle target
+                    Text(
+                        text = target.letter.toString(),
+                        fontSize = (24 * target.scale).sp,
+                        fontWeight = FontWeight.Black,
+                        fontFamily = FontFamily.Serif,
+                        color = Color(0xFF0F2B48),
+                        modifier = Modifier
+                            .offset(y = barrelLetterVerticalOffset.dp)
+                            .graphicsLayer { alpha = 0.92f }
+                    )
+                }
+            }
+        }
+
+        // ===================== CANNONBALL =====================
+        galleryState.activeShot?.let { shot ->
+            val p = shot.progress
+            val shotX = canvasW * (shot.startRatio.x + (shot.targetRatio.x - shot.startRatio.x) * p)
+            val shotY = canvasH * (shot.startRatio.y + (shot.targetRatio.y - shot.startRatio.y) * p)
+
+            CannonballShotOverlay(
+                modifier = Modifier
+                    .offset(x = shotX - 18.dp, y = shotY - 18.dp)
+                    .zIndex(2.5f)
+            )
+        }
+
         // ===================== FOREGROUND DOCK & PARROT =====================
         if (foregroundBitmap != null) {
             val bitmapWidth = foregroundBitmap.width.toFloat()
@@ -375,14 +447,10 @@ fun PirateBlasterScreen(
             Box(
                 modifier = Modifier
                      .fillMaxSize()
-                    .zIndex(1f),
+                    .zIndex(3f),
                 contentAlignment = Alignment.BottomCenter
             ) {
-
-
-
                 Box(
-
                     modifier = Modifier
                          .fillMaxSize()
                         .offset(y = 50.dp)
@@ -422,41 +490,39 @@ fun PirateBlasterScreen(
                                 missCount = missCount,
                                 celebrate = uiState.isFinished && uiState.score >= uiState.total
                             )
+
+                            // Independent floating speech bubble above parrot (zero layout impact on hero/cannon)
+                            galleryState.pirateSpeech?.let { speech ->
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color(0xFF0F172A).copy(alpha = 0.95f),
+                                    border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .offset(y = (-50).dp)
+                                        .zIndex(10f)
+                                ) {
+                                    Text(
+                                        speech,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    // CANNON + HERO + COMPANION
+                    // CANNON + HERO + COMPANION (Centered independently at bottom)
                     Box(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
+                            .align(Alignment.BottomCenter)
                             .offset(
-                                x = heroEndPadding.dp,
                                 y = (-heroBottomPadding).dp
                             )
                     ) {
                         Row(verticalAlignment = Alignment.Bottom) {
-                            // Pirate Companion
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                galleryState.pirateSpeech?.let { speech ->
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = Color(0xFF0F172A).copy(alpha = 0.9f),
-                                        border = BorderStroke(1.dp, Color(0xFFF59E0B))
-                                    ) {
-                                        Text(
-                                            speech,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                                        )
-                                    }
-                                    Spacer(Modifier.height(2.dp))
-                                }
-                            }
-
-                            Spacer(Modifier.width(6.dp))
-
                             // Cannon
                             Box(
                                 modifier = Modifier
@@ -487,7 +553,7 @@ fun PirateBlasterScreen(
                                         scaleX = 0.45f
                                         scaleY = 0.45f
                                     },
-                                animationState = if (uiState.isCorrect == true) HeroAnimationState.VICTORY else HeroAnimationState.IDLE,
+                                animationState = HeroAnimationState.IDLE, // Locked to IDLE so hero never jumps or repositions
                                 sway = false,
                                 breath = false,
                                 overrideTopPath = "sprites/special/pirate_blaster/pirate_blaster_clothes.png",
@@ -503,27 +569,26 @@ fun PirateBlasterScreen(
                 }
             }
         }
-
-        // ===================== BARREL TARGETS =====================
         galleryState.targets.filter { it.state != PirateTargetState.DESTROYED }.forEach { target ->
-            val targetX = canvasW * target.positionRatio.x
-            val targetY = (canvasH * target.positionRatio.y) + waveBob.dp
+            val targetX = canvasW * target.x
+            val targetY = (canvasH * target.y) + waveBob.dp
 
             val isExploding = target.state == PirateTargetState.HIT_CORRECT || target.state == PirateTargetState.HIT_INCORRECT
 
             if (isExploding) {
-                // Play 15-frame barrel explosion animation
+                // Play 15-frame barrel explosion animation scaled to barrel size
                 BarrelExplosionOverlay(
                     modifier = Modifier
-                        .offset(x = targetX - 60.dp, y = targetY - 60.dp)
-                        .zIndex(3f)
+                        .offset(x = targetX - (42 * target.scale).dp, y = targetY - (42 * target.scale).dp)
+                        .zIndex(3f + target.scale),
+                    scale = target.scale
                 )
             } else {
                 Box(
                     modifier = Modifier
-                        .offset(x = targetX - 34.dp, y = targetY - 40.dp)
-                        .size(width = 68.dp, height = 80.dp)
-                        .zIndex(2f)
+                        .offset(x = targetX - (34 * target.scale).dp, y = targetY - (40 * target.scale).dp)
+                        .size(width = (68 * target.scale).dp, height = (80 * target.scale).dp)
+                        .zIndex(target.scale)
                         .clickable(
                             enabled = !galleryState.isFiring && !galleryState.isResolving && !uiState.showFeedback,
                             onClick = { viewModel.fireAtTarget(target) }
@@ -550,7 +615,7 @@ fun PirateBlasterScreen(
                     // Weathered Stencil Letter centered over the painted white circle target
                     Text(
                         text = target.letter.toString(),
-                        fontSize = 24.sp,
+                        fontSize = (24 * target.scale).sp,
                         fontWeight = FontWeight.Black,
                         fontFamily = FontFamily.Serif,
                         color = Color(0xFF0F2B48),
@@ -699,7 +764,8 @@ private fun loadAssetImageBitmap(context: Context, assetName: String): ImageBitm
 
 @Composable
 private fun BarrelExplosionOverlay(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    scale: Float = 1f
 ) {
     val context = LocalContext.current
     var frameIndex by remember { mutableIntStateOf(0) }
@@ -722,7 +788,7 @@ private fun BarrelExplosionOverlay(
         Image(
             bitmap = explosionBitmap,
             contentDescription = "Barrel Explosion",
-            modifier = modifier.size(120.dp),
+            modifier = modifier.size((84 * scale).dp),
             contentScale = ContentScale.Fit
         )
     }

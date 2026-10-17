@@ -200,6 +200,7 @@ fun AppNavHost() {
                 when (gameId) {
                     "hangman" -> LabMeltdownScreen(onBack = { navController.popBackStack() })
                     "pirate_blaster" -> PirateBlasterScreen(onBack = { navController.popBackStack() })
+                    "pet_spa" -> PetSpaScreen(onBack = { navController.popBackStack() })
                     "missing_letters" -> MissingLettersScreen(onBack = { navController.popBackStack() })
                     "word_gallery" -> {
                         val context = LocalContext.current

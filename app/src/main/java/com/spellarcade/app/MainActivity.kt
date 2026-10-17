@@ -1,6 +1,7 @@
 ﻿package com.spellarcade.app
 
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,6 +20,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         window.navigationBarColor = Color.BLACK
         window.statusBarColor = Color.BLACK
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = true
+        }
         setContent {
             SpellArcadeTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
