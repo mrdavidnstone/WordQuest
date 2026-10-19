@@ -636,6 +636,7 @@ private fun PetSpaResultOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .zIndex(250f)
             .background(Color(0xFF030712).copy(alpha = 0.95f)),
         contentAlignment = Alignment.Center
     ) {

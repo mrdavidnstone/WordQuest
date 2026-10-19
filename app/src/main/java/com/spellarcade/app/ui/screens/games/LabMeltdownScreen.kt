@@ -1,7 +1,12 @@
 ﻿package com.spellarcade.app.ui.screens.games
 
 import android.content.Context
+import android.annotation.SuppressLint
 import android.graphics.BitmapFactory
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import org.json.JSONObject
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -294,6 +299,15 @@ fun LabMeltdownScreen(
             isUserLosesSequenceActive = false
             isDoorSequenceStable = false
             showResultModal = false
+        }
+    }
+
+    LaunchedEffect(isUserLosesSequenceActive) {
+        if (isUserLosesSequenceActive) {
+            repeat(3) {
+                triggerVibration(context)
+                delay(250L)
+            }
         }
     }
 
@@ -2099,6 +2113,25 @@ private fun loadAssetImageBitmap(context: Context, assetName: String): ImageBitm
         } catch (_: Exception) {}
     }
     return null
+}
+
+@SuppressLint("MissingPermission")
+private fun triggerVibration(context: Context) {
+    try {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator?.vibrate(VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator?.vibrate(120)
+        }
+    } catch (_: Exception) {}
 }
 
 @Composable
