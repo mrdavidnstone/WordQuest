@@ -1,11 +1,24 @@
 ﻿package com.spellarcade.app.ui.screens.games
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.pm.ActivityInfo
 import android.graphics.BitmapFactory
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.graphics.drawscope.withTransform
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,12 +35,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +50,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -59,17 +76,30 @@ fun PirateBlasterScreen(
     val uiState by viewModel.uiState.collectAsState()
     val galleryState by viewModel.blasterState.collectAsState()
 
-    // Portrait on Ready/Info screen, Landscape during Pirate Blaster gameplay
+    // Portrait on Ready/Info screen, Landscape + Immersive Full-Screen during gameplay
     DisposableEffect(uiState.isReady) {
         val activity = context as? Activity
-        activity?.requestedOrientation = if (uiState.isReady) {
-            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        val window = activity?.window
+        val windowInsetsController = window?.let { WindowCompat.getInsetsController(it, it.decorView) }
+
+        if (uiState.isReady) {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            windowInsetsController?.let { controller ->
+                controller.hide(WindowInsetsCompat.Type.systemBars())
+                controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
         } else {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            windowInsetsController?.let { controller ->
+                controller.show(WindowInsetsCompat.Type.systemBars())
+            }
         }
 
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            windowInsetsController?.let { controller ->
+                controller.show(WindowInsetsCompat.Type.systemBars())
+            }
         }
     }
 
@@ -225,6 +255,23 @@ fun PirateBlasterScreen(
     var cheerCount by remember { mutableIntStateOf(0) }
     var missCount by remember { mutableIntStateOf(0) }
 
+    // Screen Shake effect for damage & game over
+    val shakeAnim = remember { Animatable(0f) }
+    var showDamageFlash by remember { mutableStateOf(false) }
+
+    LaunchedEffect(galleryState.damageCount) {
+        if (galleryState.damageCount > 0) {
+            triggerVibration(context)
+            shakeAnim.animateTo(10f, tween(100))
+            shakeAnim.animateTo(-10f, tween(100))
+            shakeAnim.animateTo(5f, tween(100))
+            shakeAnim.animateTo(0f, tween(100))
+            showDamageFlash = true
+            delay(1200)
+            showDamageFlash = false
+        }
+    }
+
     LaunchedEffect(uiState.isCorrect) {
         if (uiState.isCorrect == true) {
             cheerCount++
@@ -262,6 +309,9 @@ fun PirateBlasterScreen(
             .fillMaxSize()
             .background(Color(0xFF0F172A))
             .navigationBarsPadding()
+            .graphicsLayer {
+                translationX = shakeAnim.value
+            }
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     if (!galleryState.isFiring && !galleryState.isResolving && !uiState.showFeedback && !uiState.isFinished) {
@@ -278,19 +328,27 @@ fun PirateBlasterScreen(
         val scene1Bitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/scene1.png") }
         val foregroundBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/foreground.png") }
         val parrotBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/animations/parrot.png") }
-        val barrelBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/barrels/barrel.png") }
+        val barrelBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/animations/barrel_explosion/frame_00.png") }
+        val leftWordBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/left_word.png") }
+        val middleWordBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/middle_word.png") }
+        val rightWordBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/right_word.png") }
 
         // ===================== ADJUSTABLE SETTINGS =====================
         var backgroundScrollSpeed by remember { mutableFloatStateOf(105f) }   // pixels per second
         var zoomFactor by remember { mutableFloatStateOf(1.0f) }           // 1.0 = exact height, higher = zoom in
         var backgroundVerticalOffset by remember { mutableFloatStateOf(-50f) } // dp (0 = aligned to top)
-        var heroBottomPadding by remember { mutableFloatStateOf(120f) }
-        var parrotBottomPadding by remember { mutableFloatStateOf(155f) }
+        var cannonBottomPadding by remember { mutableFloatStateOf(40f) } // Lower toward bottom of screen
+        var cannonHorizontalOffset by remember { mutableFloatStateOf(0f) }
+        var cannonScale by remember { mutableFloatStateOf(10f) } // Cannon scale factor
+        var heroBottomPadding by remember { mutableFloatStateOf(130f) }
+        var heroHorizontalOffset by remember { mutableFloatStateOf(200f) } // Horizontal offset (+ right, - left)
+        var parrotBottomPadding by remember { mutableFloatStateOf(170f) }
         var parrotStartPadding by remember { mutableFloatStateOf(70f) }
         var foregroundWidthScale by remember { mutableFloatStateOf(1.02f) } // 1.02 = slightly wider to cover edge gaps
         var foregroundScale by remember { mutableFloatStateOf(1.15f) } // Overscan/bleed scale to cover edges during rocking rotation
-        var seamOffset by remember { mutableFloatStateOf(-785f) } // Fine-tune loop gap (+ to add gap, - for overlap)
+        var seamOffset by remember { mutableFloatStateOf(-900f) } // Fine-tune loop gap (+ to add gap, - for overlap)
         var barrelLetterVerticalOffset by remember { mutableFloatStateOf(0f) } // Vertical offset for barrel letters (+ down, - up)
+        var heroScale by remember { mutableFloatStateOf(0.25f) } // Hero avatar scale factor (smaller = smaller hero)
 // ===============================================================
 
         val density = LocalDensity.current
@@ -374,12 +432,14 @@ fun PirateBlasterScreen(
             val isExploding = target.state == PirateTargetState.HIT_CORRECT || target.state == PirateTargetState.HIT_INCORRECT
 
             if (isExploding) {
-                // Play 15-frame barrel explosion animation scaled to barrel size
+                // Play 15-frame barrel explosion animation matching exact barrel dimensions with letter visible for first few frames
                 BarrelExplosionOverlay(
+                    letter = target.letter,
+                    scale = target.scale,
                     modifier = Modifier
-                        .offset(x = targetX - (42 * target.scale).dp, y = targetY - (42 * target.scale).dp)
-                        .zIndex(3f + target.scale),
-                    scale = target.scale
+                        .offset(x = targetX - (34 * target.scale).dp, y = targetY - (40 * target.scale).dp)
+                        .size(width = (68 * target.scale).dp, height = (80 * target.scale).dp)
+                        .zIndex(3f + target.scale)
                 )
             } else {
                 Box(
@@ -434,7 +494,7 @@ fun PirateBlasterScreen(
             CannonballShotOverlay(
                 modifier = Modifier
                     .offset(x = shotX - 18.dp, y = shotY - 18.dp)
-                    .zIndex(2.5f)
+                    .zIndex(4f)
             )
         }
 
@@ -514,57 +574,52 @@ fun PirateBlasterScreen(
                         }
                     }
 
-                    // CANNON + HERO + COMPANION (Centered independently at bottom)
+                    // Independent Cannon Box (zIndex 2.0f)
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .offset(
+                                x = cannonHorizontalOffset.dp,
+                                y = (-cannonBottomPadding).dp
+                            )
+                            .zIndex(2.0f)
+                    ) {
+                        CannonAimingView(
+                            cannonAngle = galleryState.cannonAngle,
+                            modifier = Modifier.size(110.dp)
+                        )
+                    }
+
+                    // Independent Hero Box (zIndex 2.5f)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(
+                                x = heroHorizontalOffset.dp,
                                 y = (-heroBottomPadding).dp
                             )
+                            .zIndex(2.5f)
                     ) {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            // Cannon
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 44.dp, height = 26.dp)
-                                    .rotate(galleryState.cannonAngle)
-                                    .background(Color(0xFF334155), RoundedCornerShape(8.dp))
-                                    .border(1.5.dp, Color(0xFFF59E0B), RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(start = 3.dp)
-                                        .size(10.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF0F172A))
-                                )
-                            }
-
-                            Spacer(Modifier.width(6.dp))
-
-                            // Hero
-                            val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
-                            HeroSprite(
-                                config = heroConfig,
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .graphicsLayer {
-                                        scaleX = 0.45f
-                                        scaleY = 0.45f
-                                    },
-                                animationState = HeroAnimationState.IDLE, // Locked to IDLE so hero never jumps or repositions
-                                sway = false,
-                                breath = false,
-                                overrideTopPath = "sprites/special/pirate_blaster/pirate_blaster_clothes.png",
-                                layerVisibility = mapOf(
-                                    CharacterLayerType.HAIR to false,
-                                    CharacterLayerType.HAT to false,
-                                    CharacterLayerType.SHOES to false,
-                                    CharacterLayerType.BOTTOM to false
-                                )
+                        val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
+                        HeroSprite(
+                            config = heroConfig,
+                            modifier = Modifier
+                                .height(48.dp)
+                                .graphicsLayer {
+                                    scaleX = heroScale
+                                    scaleY = heroScale
+                                },
+                            animationState = HeroAnimationState.IDLE, // Locked to IDLE so hero never jumps or repositions
+                            sway = false,
+                            breath = false,
+                            overrideTopPath = "sprites/special/pirate_blaster/pirate_blaster_clothes.png",
+                            layerVisibility = mapOf(
+                                CharacterLayerType.HAIR to false,
+                                CharacterLayerType.HAT to false,
+                                CharacterLayerType.SHOES to false,
+                                CharacterLayerType.BOTTOM to false
                             )
-                        }
+                        )
                     }
                 }
             }
@@ -576,12 +631,14 @@ fun PirateBlasterScreen(
             val isExploding = target.state == PirateTargetState.HIT_CORRECT || target.state == PirateTargetState.HIT_INCORRECT
 
             if (isExploding) {
-                // Play 15-frame barrel explosion animation scaled to barrel size
+                // Play 15-frame barrel explosion animation matching exact barrel dimensions with letter visible for first few frames
                 BarrelExplosionOverlay(
+                    letter = target.letter,
+                    scale = target.scale,
                     modifier = Modifier
-                        .offset(x = targetX - (42 * target.scale).dp, y = targetY - (42 * target.scale).dp)
-                        .zIndex(3f + target.scale),
-                    scale = target.scale
+                        .offset(x = targetX - (34 * target.scale).dp, y = targetY - (40 * target.scale).dp)
+                        .size(width = (68 * target.scale).dp, height = (80 * target.scale).dp)
+                        .zIndex(3f + target.scale)
                 )
             } else {
                 Box(
@@ -636,7 +693,7 @@ fun PirateBlasterScreen(
             CannonballShotOverlay(
                 modifier = Modifier
                     .offset(x = shotX - 18.dp, y = shotY - 18.dp)
-                    .zIndex(2.5f)
+                    .zIndex(4f)
             )
         }
 
@@ -646,33 +703,70 @@ fun PirateBlasterScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 16.dp)
                 .systemBarsPadding()
-                .zIndex(2f)
+                .zIndex(100f),
+            contentAlignment = Alignment.Center
         ) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = Color(0xFF0F172A).copy(alpha = 0.92f),
-                border = BorderStroke(2.dp, Color(0xFFF59E0B))
+            // Wooden sign background container composed of left, repeating middle (per letter), and right
+            Row(
+                modifier = Modifier.height(64.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    galleryState.maskedWord.forEachIndexed { i, ch ->
-                        val isTarget = galleryState.missingIndices.getOrNull(galleryState.currentPointer) == i
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isTarget) Color(0xFFF59E0B) else Color(0xFF334155),
-                            modifier = Modifier.size(width = 36.dp, height = 44.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    if (ch == '_') "" else ch.toString(),
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
-                                )
-                            }
+                if (leftWordBitmap != null) {
+                    Image(
+                        bitmap = leftWordBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxHeight(),
+                        contentScale = ContentScale.FillHeight
+                    )
+                }
+
+                val letterCount = galleryState.maskedWord.size.coerceAtLeast(1)
+                Row(modifier = Modifier.fillMaxHeight()) {
+                    repeat(letterCount) {
+                        if (middleWordBitmap != null) {
+                            Image(
+                                bitmap = middleWordBitmap,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(44.dp),
+                                contentScale = ContentScale.FillBounds
+                            )
+                        }
+                    }
+                }
+
+                if (rightWordBitmap != null) {
+                    Image(
+                        bitmap = rightWordBitmap,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxHeight(),
+                        contentScale = ContentScale.FillHeight
+                    )
+                }
+            }
+
+            // Letter tiles overlaid on top of the wooden sign background
+            Row(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                galleryState.maskedWord.forEachIndexed { i, ch ->
+                    val isTarget = galleryState.missingIndices.getOrNull(galleryState.currentPointer) == i
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isTarget) Color(0xFFF59E0B).copy(alpha = 0.9f) else Color(0xFF1E293B).copy(alpha = 0.85f),
+                        border = BorderStroke(1.5.dp, Color(0xFFF59E0B)),
+                        modifier = Modifier.size(width = 36.dp, height = 44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                if (ch == '_') "" else ch.toString(),
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color.White
+                            )
                         }
                     }
                 }
@@ -685,18 +779,25 @@ fun PirateBlasterScreen(
                 .fillMaxWidth()
                 .systemBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp)
-                .zIndex(2f),
+                .zIndex(200f),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.4f))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E293B))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                }
+
+                HeartsBanner(healthUnits = galleryState.healthUnits, difficulty = uiState.overallDifficulty)
             }
 
             Surface(
@@ -718,12 +819,30 @@ fun PirateBlasterScreen(
             Spacer(Modifier.width(36.dp))
         }
 
-        // ===================== RESULT OVERLAY =====================
-        if (uiState.isFinished) {
+        // Translucent Red Flash Overlay on damage or game over
+        if (showDamageFlash || (uiState.isFinished && galleryState.healthUnits <= 0)) {
+            val infiniteAnim = rememberInfiniteTransition(label = "damage_flash")
+            val alphaAnim by infiniteAnim.animateFloat(
+                initialValue = 0.3f,
+                targetValue = 0.8f,
+                animationSpec = infiniteRepeatable(tween(400, easing = LinearEasing), repeatMode = RepeatMode.Reverse),
+                label = "flash"
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(10f)
+                    .zIndex(150f)
+                    .background(Color.Red.copy(alpha = alphaAnim * 0.4f))
+            )
+        }
+
+        // ===================== RESULT OVERLAY =====================
+        if (uiState.isFinished) {
+            val isGameLost = galleryState.healthUnits <= 0 || galleryState.isGameOver
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(250f)
                     .background(Color.Black.copy(alpha = 0.85f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -732,19 +851,44 @@ fun PirateBlasterScreen(
                     modifier = Modifier
                         .padding(24.dp)
                         .background(Color(0xFF0F172A), RoundedCornerShape(24.dp))
-                        .border(BorderStroke(2.dp, Color(0xFFF59E0B)), RoundedCornerShape(24.dp))
+                        .border(BorderStroke(2.dp, if (isGameLost) Color(0xFFEF4444) else Color(0xFFF59E0B)), RoundedCornerShape(24.dp))
                         .padding(24.dp)
                 ) {
-                    Text("🏴‍☠️ PIRATE VOYAGE COMPLETE! 🏴‍☠️", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color.White)
+                    Text(
+                        if (isGameLost) "💥 GAME OVER! 💥" else "🏴‍☠️ PIRATE VOYAGE COMPLETE! 🏴‍☠️",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (isGameLost) Color(0xFFEF4444) else Color.White,
+                        textAlign = TextAlign.Center
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Text("Score: ${uiState.score} / ${uiState.total}", fontSize = 16.sp, color = Color.White.copy(alpha = 0.8f))
-                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        if (isGameLost) "The pirate ship suffered a critical defeat!" else "Score: ${uiState.score} / ${uiState.total}",
+                        fontSize = 16.sp,
+                        color = Color.White.copy(alpha = 0.8f),
+                        textAlign = TextAlign.Center
+                    )
+                    if (isGameLost) {
+                        Spacer(Modifier.height(4.dp))
+                        Text("Score: ${uiState.score} / ${uiState.total}", fontSize = 14.sp, color = Color.White.copy(alpha = 0.7f))
+                    }
+                    Spacer(Modifier.height(20.dp))
                     Button(
-                        onClick = onBack,
+                        onClick = { viewModel.startGame() },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
                     ) {
-                        Text("Back to Word Gallery", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("🔄 RESTART NEW GAME", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = onBack,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+                    ) {
+                        Text("Back to Games", color = Color.White)
                     }
                 }
             }
@@ -762,9 +906,96 @@ private fun loadAssetImageBitmap(context: Context, assetName: String): ImageBitm
     }
 }
 
+@SuppressLint("MissingPermission")
+private fun triggerVibration(context: Context) {
+    try {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator?.vibrate(VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator?.vibrate(120)
+        }
+    } catch (_: Exception) {}
+}
+
+@Composable
+private fun HeartsBanner(
+    healthUnits: Int,
+    difficulty: Int,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val leftBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/left_word.png") }
+    val middleBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/middle_word.png") }
+    val rightBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/right_word.png") }
+    val fullHeartBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/full_heart.png") }
+    val halfHeartBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/half_heart.png") }
+    val emptyHeartBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/empty_heart.png") }
+
+    val numHearts = when (difficulty) {
+        1 -> 5 // Easy: 5 hearts (10 half-heart units)
+        2 -> 4 // Medium: 4 hearts (8 half-heart units)
+        3 -> 3 // Hard: 3 hearts (6 half-heart units)
+        else -> 5
+    }
+
+    Box(
+        modifier = modifier.height(52.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier.fillMaxHeight(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (leftBitmap != null) {
+                Image(bitmap = leftBitmap, contentDescription = null, modifier = Modifier.fillMaxHeight(), contentScale = ContentScale.FillHeight)
+            }
+            repeat(numHearts) {
+                if (middleBitmap != null) {
+                    Image(bitmap = middleBitmap, contentDescription = null, modifier = Modifier.fillMaxHeight().width(36.dp), contentScale = ContentScale.FillBounds)
+                }
+            }
+            if (rightBitmap != null) {
+                Image(bitmap = rightBitmap, contentDescription = null, modifier = Modifier.fillMaxHeight(), contentScale = ContentScale.FillHeight)
+            }
+        }
+
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            for (i in 0 until numHearts) {
+                val unitsForThisHeart = (healthUnits - (2 * i)).coerceIn(0, 2)
+                val heartBmp = when (unitsForThisHeart) {
+                    2 -> fullHeartBitmap
+                    1 -> halfHeartBitmap
+                    else -> emptyHeartBitmap
+                }
+                if (heartBmp != null) {
+                    Image(
+                        bitmap = heartBmp,
+                        contentDescription = "Heart $i",
+                        modifier = Modifier.size(28.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun BarrelExplosionOverlay(
     modifier: Modifier = Modifier,
+    letter: Char? = null,
     scale: Float = 1f
 ) {
     val context = LocalContext.current
@@ -784,13 +1015,87 @@ private fun BarrelExplosionOverlay(
         loadAssetImageBitmap(context, framePath)
     }
 
-    if (explosionBitmap != null) {
-        Image(
-            bitmap = explosionBitmap,
-            contentDescription = "Barrel Explosion",
-            modifier = modifier.size((84 * scale).dp),
-            contentScale = ContentScale.Fit
-        )
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        if (explosionBitmap != null) {
+            Image(
+                bitmap = explosionBitmap,
+                contentDescription = "Barrel Explosion",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit
+            )
+        }
+
+        // Keep the letter visible during the first few frames (frameIndex <= 3) before dissolving
+        if (letter != null && frameIndex <= 3) {
+            Text(
+                text = letter.toString(),
+                fontSize = (24 * scale).sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Serif,
+                color = Color(0xFF0F2B48),
+                modifier = Modifier
+                    .offset(y = 0.dp)
+                    .graphicsLayer {
+                        alpha = if (frameIndex <= 2) 0.92f else 0.4f
+                    }
+            )
+        }
+    }
+}
+
+@Composable
+fun CannonAimingView(
+    cannonAngle: Float,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val manager = remember(context) { CannonSpriteManager.getInstance(context) }
+    var yawIndex by remember { mutableIntStateOf(2) }
+    var pitchIndex by remember { mutableIntStateOf(2) }
+
+    val rad = Math.toRadians(cannonAngle.toDouble())
+    val aimX = cos(rad).toFloat()
+    val aimY = -sin(rad).toFloat()
+
+    LaunchedEffect(aimX, aimY) {
+        val (yI, pI) = getAimIndices(aimX, aimY, yawIndex, pitchIndex)
+        yawIndex = yI
+        pitchIndex = pI
+    }
+
+    val sprite = manager.getSprite(yawIndex, pitchIndex)
+
+    Canvas(modifier = modifier) {
+        val bmp = sprite?.bitmap ?: return@Canvas
+        val pivot = manager.pivot
+        val s = 0.32f // Uniform scale
+
+        val mountX = size.width / 2f
+        val mountY = size.height
+
+        val left = mountX - pivot.x * s
+        val top = mountY - pivot.y * s
+
+        val drawOp: DrawScope.() -> Unit = {
+            drawImage(
+                image = bmp,
+                dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
+                dstSize = IntSize((bmp.width * s).roundToInt(), (bmp.height * s).roundToInt())
+            )
+        }
+
+        if (sprite.flipX) {
+            withTransform({
+                scale(scaleX = -1f, scaleY = 1f, pivot = Offset(mountX, mountY))
+            }) {
+                drawOp()
+            }
+        } else {
+            drawOp()
+        }
     }
 }
 

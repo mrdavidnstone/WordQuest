@@ -56,7 +56,11 @@ data class PirateBlasterUiState(
     val missesCount: Int = 0,
     val isFiring: Boolean = false,
     val isResolving: Boolean = false,
-    val pirateSpeech: String? = null
+    val pirateSpeech: String? = null,
+    val healthUnits: Int = 10,
+    val maxHealthUnits: Int = 10,
+    val damageCount: Int = 0,
+    val isGameOver: Boolean = false
 )
 
 @HiltViewModel
@@ -73,12 +77,77 @@ class PirateBlasterViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             uiState.collect { state ->
+                val level = state.overallDifficulty
+                val maxUnits = when (level) {
+                    3 -> 6  // Hard: 3 hearts (6 half-heart units)
+                    2 -> 8  // Medium: 4 hearts (8 half-heart units)
+                    1 -> 5  // Easy: 5 hearts (10 half-heart units)
+                    else -> 10
+                }
+                _blasterState.update { cur ->
+                    if (cur.healthUnits <= 0 && !cur.isGameOver) {
+                        cur.copy(healthUnits = maxUnits, maxHealthUnits = maxUnits)
+                    } else {
+                        cur.copy(maxHealthUnits = maxUnits)
+                    }
+                }
+
                 if (state.isReady && !state.isFinished && gameLoopJob == null) {
                     startGameLoop()
                 } else if (!state.isReady || state.isFinished) {
                     gameLoopJob?.cancel()
                     gameLoopJob = null
                 }
+            }
+        }
+    }
+
+    override fun startGame() {
+        super.startGame()
+        val level = uiState.value.overallDifficulty
+        val maxUnits = when (level) {
+            3 -> 6  // Hard: 3 hearts (6 half-heart units)
+            2 -> 8  // Medium: 4 hearts (8 half-heart units)
+            1 -> 5  // Easy: 5 hearts (10 half-heart units)
+            else -> 10
+        }
+        _blasterState.update {
+            it.copy(
+                healthUnits = maxUnits,
+                maxHealthUnits = maxUnits,
+                isGameOver = false,
+                damageCount = 0,
+                missesCount = 0
+            )
+        }
+    }
+
+    private fun inflictDamage() {
+        val state = _blasterState.value
+        if (state.isGameOver || uiState.value.isFinished) return
+
+        val newHealth = (state.healthUnits - 1).coerceAtLeast(0)
+        val newDamageCount = state.damageCount + 1
+
+        if (newHealth <= 0) {
+            _blasterState.update {
+                it.copy(
+                    healthUnits = 0,
+                    damageCount = newDamageCount,
+                    isGameOver = true
+                )
+            }
+            showSpeech("ARRR! Ship wrecked! Game Over!")
+            viewModelScope.launch {
+                delay(600)
+                finishGame()
+            }
+        } else {
+            _blasterState.update {
+                it.copy(
+                    healthUnits = newHealth,
+                    damageCount = newDamageCount
+                )
             }
         }
     }
@@ -138,8 +207,21 @@ class PirateBlasterViewModel @Inject constructor(
             missesCount = 0,
             isFiring = false,
             isResolving = false,
-            pirateSpeech = "Arrr! Barrels ahoy! Aim for the missing letters!"
+            pirateSpeech = null
         )
+        showSpeech("Arrr! Barrels ahoy! Aim for the missing letters!")
+    }
+
+    private fun showSpeech(speech: String) {
+        _blasterState.update { it.copy(pirateSpeech = speech) }
+        viewModelScope.launch {
+            delay(1000L) // Hide after 1 second
+            _blasterState.update { cur ->
+                if (cur.pirateSpeech == speech) {
+                    cur.copy(pirateSpeech = null)
+                } else cur
+            }
+        }
     }
 
     private fun startGameLoop() {
@@ -193,6 +275,7 @@ class PirateBlasterViewModel @Inject constructor(
                         )
                     )
                 } else if (target.isCorrect && target.retriesLeft <= 0) {
+                    inflictDamage()
                     _blasterState.update { it.copy(missesCount = it.missesCount + 1) }
                 }
             } else {
@@ -357,10 +440,10 @@ class PirateBlasterViewModel @Inject constructor(
                         targets = updatedTargets,
                         isFiring = false,
                         isResolving = true,
-                        activeShot = null,
-                        pirateSpeech = "ARRR! Word Complete! Magnificent shooting! 💥"
+                        activeShot = null
                     )
                 }
+                showSpeech("ARRR! Word Complete! Magnificent shooting! 💥")
 
                 viewModelScope.launch {
                     delay(750) // Wait for 15-frame explosion animation @ 20fps
@@ -377,10 +460,10 @@ class PirateBlasterViewModel @Inject constructor(
                         targets = updatedTargets,
                         isFiring = false,
                         isResolving = false,
-                        activeShot = null,
-                        pirateSpeech = "Direct hit! Target the next missing letter!"
+                        activeShot = null
                     )
                 }
+                showSpeech("Direct hit! Target the next missing letter!")
                 viewModelScope.launch {
                     delay(750)
                     _blasterState.update { cur ->
@@ -390,6 +473,7 @@ class PirateBlasterViewModel @Inject constructor(
                 }
             }
         } else {
+            inflictDamage()
             _blasterState.update { cur ->
                 val updatedTargets = cur.targets.map { t ->
                     if (t.id == target.id) t.copy(state = PirateTargetState.HIT_INCORRECT) else t
@@ -399,10 +483,10 @@ class PirateBlasterViewModel @Inject constructor(
                     missesCount = cur.missesCount + 1,
                     isFiring = false,
                     isResolving = false,
-                    activeShot = null,
-                    pirateSpeech = "ARRR! Wrong barrel! Try again!"
+                    activeShot = null
                 )
             }
+            showSpeech("ARRR! Wrong barrel! Try again!")
 
             viewModelScope.launch {
                 delay(750)

@@ -58,3 +58,9 @@ Claude
 **Track:** The Last Encounter Collection.zip
 **Artist:** Matthew Pablo
 **Source:** https://opengameart.org/content/rpg-battle-theme-the-last-encounter-0
+
+## Pet Spa
+
+**Track:** gem-waltz.wav
+**Artist:** Haley Halcyon
+**Source:** https://opengameart.org/content/gem-waltz-free-music-loop

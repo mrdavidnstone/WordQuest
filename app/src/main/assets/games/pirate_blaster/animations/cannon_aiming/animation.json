@@ -1,0 +1,616 @@
+{
+  "name": "pirate_blaster_cannon_aiming",
+  "version": 1,
+  "description": "15 pre-rendered cannon aiming sprites (center + left side). The right side is the left sprites mirrored in code (flip_x). Aim is selected by swapping whole sprites; sprites are never rotated, skewed, or stretched.",
+  "sprite_dir": "sprites/",
+  "canvas": {
+    "width": 308,
+    "height": 308,
+    "note": "All 25 PNGs share this exact size (RGBA). Draw them all at the same scale."
+  },
+  "pivot_px": {
+    "x": 154,
+    "y": 298,
+    "note": "Mount point, i.e. the centre of the cannon's base at the bottom edge. It is the same pixel in every sprite. Anchor this point to the cannon mount position on screen."
+  },
+  "yaw_steps": [
+    "far_left",
+    "mid_left",
+    "center",
+    "mid_right",
+    "far_right"
+  ],
+  "pitch_steps": [
+    "high",
+    "upper_mid",
+    "center",
+    "lower_mid",
+    "low"
+  ],
+  "grid_rows_are_pitch_cols_are_yaw": [
+    [
+      "far_left/high",
+      "mid_left/high",
+      "center/high",
+      "mid_right/high",
+      "far_right/high"
+    ],
+    [
+      "far_left/upper_mid",
+      "mid_left/upper_mid",
+      "center/upper_mid",
+      "mid_right/upper_mid",
+      "far_right/upper_mid"
+    ],
+    [
+      "far_left/center",
+      "mid_left/center",
+      "center/center",
+      "mid_right/center",
+      "far_right/center"
+    ],
+    [
+      "far_left/lower_mid",
+      "mid_left/lower_mid",
+      "center/lower_mid",
+      "mid_right/lower_mid",
+      "far_right/lower_mid"
+    ],
+    [
+      "far_left/low",
+      "mid_left/low",
+      "center/low",
+      "mid_right/low",
+      "far_right/low"
+    ]
+  ],
+  "aim_space": {
+    "aim_x": "-1 = far left of the play area, 0 = straight ahead, +1 = far right",
+    "aim_y": "+1 = barrel raised highest, 0 = level, -1 = barrel lowered most",
+    "yaw_bins": {
+      "far_left": [
+        -1.0,
+        -0.75
+      ],
+      "mid_left": [
+        -0.75,
+        -0.25
+      ],
+      "center": [
+        -0.25,
+        0.25
+      ],
+      "mid_right": [
+        0.25,
+        0.75
+      ],
+      "far_right": [
+        0.75,
+        1.0
+      ]
+    },
+    "pitch_bins": {
+      "high": [
+        0.75,
+        1.0
+      ],
+      "upper_mid": [
+        0.25,
+        0.75
+      ],
+      "center": [
+        -0.25,
+        0.25
+      ],
+      "lower_mid": [
+        -0.75,
+        -0.25
+      ],
+      "low": [
+        -1.0,
+        -0.75
+      ]
+    },
+    "formulas": {
+      "yaw_index": "clamp(round(aim_x*2)+2, 0, 4)",
+      "pitch_index": "clamp(2-round(aim_y*2), 0, 4)"
+    },
+    "hysteresis": 0.08,
+    "hysteresis_note": "Only leave the current bin once aim has passed the bin edge by this much, so the sprite does not flicker at a boundary."
+  },
+  "target_to_aim": {
+    "aim_x": "clamp((target_screen_x - pivot_screen_x) / yaw_full_scale_px, -1, 1)",
+    "aim_y": "clamp((horizon_screen_y - target_screen_y) / pitch_full_scale_px, -1, 1)",
+    "tunables": {
+      "yaw_full_scale_px": "default: screen_width / 2",
+      "horizon_screen_y": "screen Y of the horizon line",
+      "pitch_full_scale_px": "default: distance from horizon to the bottom of the play area"
+    }
+  },
+  "right_side": {
+    "method": "runtime horizontal mirror of the matching left sprite (flip_x = true); no right-side files are shipped",
+    "mapping": {
+      "mid_right": "mirror of mid_left",
+      "far_right": "mirror of far_left",
+      "center": "shared, symmetric (no flip)"
+    },
+    "how": "Mirror around the pivot's x (the canvas centre column) so the base stays put. On Android Canvas: canvas.scale(-1f, 1f, mountX, mountY) before drawing, then restore.",
+    "muzzle": "muzzle_px for flipped frames is already mirrored (canvas_width - x)."
+  },
+  "playback": {
+    "swap_mode": "instant",
+    "tween": "none",
+    "min_ms_between_swaps": 0,
+    "rules": [
+      "Swap the whole sprite; never rotate, shear, or non-uniformly scale it to fake an angle. The ONLY allowed transform besides uniform scale is the horizontal mirror (flip_x) around the pivot x for the right side.",
+      "Draw every sprite with the identical origin (pivot at the mount point) so nothing jumps, flipped or not.",
+      "Pre-load all 25 bitmaps at start-up; never decode during gameplay.",
+      "Draw order: ship deck, then cannon sprite, then projectiles/effects (spawn projectiles at muzzle_px)."
+    ]
+  },
+  "muzzle_note": "muzzle_px is the barrel tip in canvas pixels, estimated from the artwork. Spawn cannonballs and flashes there (scaled and offset like the sprite). Verify visually and nudge per frame if needed.",
+  "frames": {
+    "far_left/high": {
+      "file": "sprites/cannon_far_left_high.png",
+      "yaw": "far_left",
+      "pitch": "high",
+      "yaw_index": 0,
+      "pitch_index": 0,
+      "aim_x": -1,
+      "aim_y": 1,
+      "mirror_of": null,
+      "muzzle_px": [
+        47.0,
+        52.0
+      ],
+      "flip_x": false
+    },
+    "far_left/upper_mid": {
+      "file": "sprites/cannon_far_left_upper_mid.png",
+      "yaw": "far_left",
+      "pitch": "upper_mid",
+      "yaw_index": 0,
+      "pitch_index": 1,
+      "aim_x": -1,
+      "aim_y": 0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        56.1,
+        84.6
+      ],
+      "flip_x": false
+    },
+    "far_left/center": {
+      "file": "sprites/cannon_far_left_center.png",
+      "yaw": "far_left",
+      "pitch": "center",
+      "yaw_index": 0,
+      "pitch_index": 2,
+      "aim_x": -1,
+      "aim_y": 0,
+      "mirror_of": null,
+      "muzzle_px": [
+        53.2,
+        105.6
+      ],
+      "flip_x": false
+    },
+    "far_left/lower_mid": {
+      "file": "sprites/cannon_far_left_lower_mid.png",
+      "yaw": "far_left",
+      "pitch": "lower_mid",
+      "yaw_index": 0,
+      "pitch_index": 3,
+      "aim_x": -1,
+      "aim_y": -0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        59.5,
+        119.1
+      ],
+      "flip_x": false
+    },
+    "far_left/low": {
+      "file": "sprites/cannon_far_left_low.png",
+      "yaw": "far_left",
+      "pitch": "low",
+      "yaw_index": 0,
+      "pitch_index": 4,
+      "aim_x": -1,
+      "aim_y": -1,
+      "mirror_of": null,
+      "muzzle_px": [
+        77.0,
+        146.7
+      ],
+      "flip_x": false
+    },
+    "mid_left/high": {
+      "file": "sprites/cannon_mid_left_high.png",
+      "yaw": "mid_left",
+      "pitch": "high",
+      "yaw_index": 1,
+      "pitch_index": 0,
+      "aim_x": -0.5,
+      "aim_y": 1,
+      "mirror_of": null,
+      "muzzle_px": [
+        54.7,
+        58.1
+      ],
+      "flip_x": false
+    },
+    "mid_left/upper_mid": {
+      "file": "sprites/cannon_mid_left_upper_mid.png",
+      "yaw": "mid_left",
+      "pitch": "upper_mid",
+      "yaw_index": 1,
+      "pitch_index": 1,
+      "aim_x": -0.5,
+      "aim_y": 0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        65.1,
+        75.8
+      ],
+      "flip_x": false
+    },
+    "mid_left/center": {
+      "file": "sprites/cannon_mid_left_center.png",
+      "yaw": "mid_left",
+      "pitch": "center",
+      "yaw_index": 1,
+      "pitch_index": 2,
+      "aim_x": -0.5,
+      "aim_y": 0,
+      "mirror_of": null,
+      "muzzle_px": [
+        54.9,
+        99.8
+      ],
+      "flip_x": false
+    },
+    "mid_left/lower_mid": {
+      "file": "sprites/cannon_mid_left_lower_mid.png",
+      "yaw": "mid_left",
+      "pitch": "lower_mid",
+      "yaw_index": 1,
+      "pitch_index": 3,
+      "aim_x": -0.5,
+      "aim_y": -0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        58.7,
+        112.1
+      ],
+      "flip_x": false
+    },
+    "mid_left/low": {
+      "file": "sprites/cannon_mid_left_low.png",
+      "yaw": "mid_left",
+      "pitch": "low",
+      "yaw_index": 1,
+      "pitch_index": 4,
+      "aim_x": -0.5,
+      "aim_y": -1,
+      "mirror_of": null,
+      "muzzle_px": [
+        62.9,
+        137.2
+      ],
+      "flip_x": false
+    },
+    "center/high": {
+      "file": "sprites/cannon_center_high.png",
+      "yaw": "center",
+      "pitch": "high",
+      "yaw_index": 2,
+      "pitch_index": 0,
+      "aim_x": 0,
+      "aim_y": 1,
+      "mirror_of": null,
+      "muzzle_px": [
+        158.2,
+        21.0
+      ],
+      "flip_x": false
+    },
+    "center/upper_mid": {
+      "file": "sprites/cannon_center_upper_mid.png",
+      "yaw": "center",
+      "pitch": "upper_mid",
+      "yaw_index": 2,
+      "pitch_index": 1,
+      "aim_x": 0,
+      "aim_y": 0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        155.2,
+        57.0
+      ],
+      "flip_x": false
+    },
+    "center/center": {
+      "file": "sprites/cannon_center_center.png",
+      "yaw": "center",
+      "pitch": "center",
+      "yaw_index": 2,
+      "pitch_index": 2,
+      "aim_x": 0,
+      "aim_y": 0,
+      "mirror_of": null,
+      "muzzle_px": [
+        152.2,
+        70.0
+      ],
+      "flip_x": false
+    },
+    "center/lower_mid": {
+      "file": "sprites/cannon_center_lower_mid.png",
+      "yaw": "center",
+      "pitch": "lower_mid",
+      "yaw_index": 2,
+      "pitch_index": 3,
+      "aim_x": 0,
+      "aim_y": -0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        152.3,
+        87.0
+      ],
+      "flip_x": false
+    },
+    "center/low": {
+      "file": "sprites/cannon_center_low.png",
+      "yaw": "center",
+      "pitch": "low",
+      "yaw_index": 2,
+      "pitch_index": 4,
+      "aim_x": 0,
+      "aim_y": -1,
+      "mirror_of": null,
+      "muzzle_px": [
+        151.4,
+        119.0
+      ],
+      "flip_x": false
+    },
+    "mid_right/high": {
+      "file": "sprites/cannon_mid_left_high.png",
+      "yaw": "mid_right",
+      "pitch": "high",
+      "yaw_index": 3,
+      "pitch_index": 0,
+      "aim_x": 0.5,
+      "aim_y": 1,
+      "mirror_of": null,
+      "muzzle_px": [
+        253.3,
+        58.1
+      ],
+      "flip_x": true
+    },
+    "mid_right/upper_mid": {
+      "file": "sprites/cannon_mid_left_upper_mid.png",
+      "yaw": "mid_right",
+      "pitch": "upper_mid",
+      "yaw_index": 3,
+      "pitch_index": 1,
+      "aim_x": 0.5,
+      "aim_y": 0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        242.9,
+        75.8
+      ],
+      "flip_x": true
+    },
+    "mid_right/center": {
+      "file": "sprites/cannon_mid_left_center.png",
+      "yaw": "mid_right",
+      "pitch": "center",
+      "yaw_index": 3,
+      "pitch_index": 2,
+      "aim_x": 0.5,
+      "aim_y": 0,
+      "mirror_of": null,
+      "muzzle_px": [
+        253.1,
+        99.8
+      ],
+      "flip_x": true
+    },
+    "mid_right/lower_mid": {
+      "file": "sprites/cannon_mid_left_lower_mid.png",
+      "yaw": "mid_right",
+      "pitch": "lower_mid",
+      "yaw_index": 3,
+      "pitch_index": 3,
+      "aim_x": 0.5,
+      "aim_y": -0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        249.3,
+        112.1
+      ],
+      "flip_x": true
+    },
+    "mid_right/low": {
+      "file": "sprites/cannon_mid_left_low.png",
+      "yaw": "mid_right",
+      "pitch": "low",
+      "yaw_index": 3,
+      "pitch_index": 4,
+      "aim_x": 0.5,
+      "aim_y": -1,
+      "mirror_of": null,
+      "muzzle_px": [
+        245.1,
+        137.2
+      ],
+      "flip_x": true
+    },
+    "far_right/high": {
+      "file": "sprites/cannon_far_left_high.png",
+      "yaw": "far_right",
+      "pitch": "high",
+      "yaw_index": 4,
+      "pitch_index": 0,
+      "aim_x": 1,
+      "aim_y": 1,
+      "mirror_of": null,
+      "muzzle_px": [
+        261.0,
+        52.0
+      ],
+      "flip_x": true
+    },
+    "far_right/upper_mid": {
+      "file": "sprites/cannon_far_left_upper_mid.png",
+      "yaw": "far_right",
+      "pitch": "upper_mid",
+      "yaw_index": 4,
+      "pitch_index": 1,
+      "aim_x": 1,
+      "aim_y": 0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        251.9,
+        84.6
+      ],
+      "flip_x": true
+    },
+    "far_right/center": {
+      "file": "sprites/cannon_far_left_center.png",
+      "yaw": "far_right",
+      "pitch": "center",
+      "yaw_index": 4,
+      "pitch_index": 2,
+      "aim_x": 1,
+      "aim_y": 0,
+      "mirror_of": null,
+      "muzzle_px": [
+        254.8,
+        105.6
+      ],
+      "flip_x": true
+    },
+    "far_right/lower_mid": {
+      "file": "sprites/cannon_far_left_lower_mid.png",
+      "yaw": "far_right",
+      "pitch": "lower_mid",
+      "yaw_index": 4,
+      "pitch_index": 3,
+      "aim_x": 1,
+      "aim_y": -0.5,
+      "mirror_of": null,
+      "muzzle_px": [
+        248.5,
+        119.1
+      ],
+      "flip_x": true
+    },
+    "far_right/low": {
+      "file": "sprites/cannon_far_left_low.png",
+      "yaw": "far_right",
+      "pitch": "low",
+      "yaw_index": 4,
+      "pitch_index": 4,
+      "aim_x": 1,
+      "aim_y": -1,
+      "mirror_of": null,
+      "muzzle_px": [
+        231.0,
+        146.7
+      ],
+      "flip_x": true
+    }
+  },
+  "sequences": {
+    "preview_gif_order": [
+      "far_left/high",
+      "far_left/upper_mid",
+      "far_left/center",
+      "far_left/lower_mid",
+      "far_left/low",
+      "mid_left/low",
+      "mid_left/lower_mid",
+      "mid_left/center",
+      "mid_left/upper_mid",
+      "mid_left/high",
+      "center/high",
+      "center/upper_mid",
+      "center/center",
+      "center/lower_mid",
+      "center/low",
+      "mid_right/low",
+      "mid_right/lower_mid",
+      "mid_right/center",
+      "mid_right/upper_mid",
+      "mid_right/high",
+      "far_right/high",
+      "far_right/upper_mid",
+      "far_right/center",
+      "far_right/lower_mid",
+      "far_right/low",
+      "far_right/center",
+      "mid_right/center",
+      "center/center",
+      "mid_left/center",
+      "far_left/center"
+    ],
+    "preview_gif_frame_ms": [
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      300,
+      170,
+      170,
+      170,
+      170,
+      450
+    ],
+    "yaw_sweep_at_level": [
+      "far_left/center",
+      "mid_left/center",
+      "center/center",
+      "mid_right/center",
+      "far_right/center"
+    ],
+    "pitch_sweep_at_center": [
+      "center/high",
+      "center/upper_mid",
+      "center/center",
+      "center/lower_mid",
+      "center/low"
+    ]
+  },
+  "preview_gif": "cannon_rotation_preview.gif",
+  "known_limits": [
+    "mid_* and far_* are visually close (far is only slightly more turned).",
+    "Jump from center (true rear view) to mid_* (three-quarter view) is large, so the swap will be noticeable.",
+    "Source art is about 250 px wide per cannon; fine for phone sizes, soft if scaled well beyond ~1.5x.",
+    "Mirroring also mirrors the painted lighting, so right-side highlights fall on the opposite side. Usually unnoticeable in play."
+  ]
+}
