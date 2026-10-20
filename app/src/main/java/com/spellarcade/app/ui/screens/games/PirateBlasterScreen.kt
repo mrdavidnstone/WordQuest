@@ -343,12 +343,12 @@ fun PirateBlasterScreen(
         // ===================== ADJUSTABLE SETTINGS =====================
         var backgroundScrollSpeed by remember { mutableFloatStateOf(105f) }   // pixels per second
         var zoomFactor by remember { mutableFloatStateOf(1.0f) }           // 1.0 = exact height, higher = zoom in
-        var backgroundVerticalOffset by remember { mutableFloatStateOf(-50f) } // dp (0 = aligned to top)
+        var backgroundVerticalOffset by remember { mutableFloatStateOf(-40f) } // dp (0 = aligned to top)
         var cannonBottomPadding by remember { mutableFloatStateOf(40f) } // Lower toward bottom of screen
-        var cannonScale by remember { mutableFloatStateOf(1.7f) } // Cannon scale factor
-        var heroBottomPadding by remember { mutableFloatStateOf(130f) }
+        var cannonScale by remember { mutableFloatStateOf(1.3f) } // Cannon scale factor
+        var heroBottomPadding by remember { mutableFloatStateOf(120f) }
         var heroHorizontalOffset by remember { mutableFloatStateOf(200f) } // Horizontal offset (+ right, - left)
-        var parrotBottomPadding by remember { mutableFloatStateOf(170f) }
+        var parrotBottomPadding by remember { mutableFloatStateOf(135f) }
         var parrotStartPadding by remember { mutableFloatStateOf(70f) }
         var foregroundWidthScale by remember { mutableFloatStateOf(1.02f) } // 1.02 = slightly wider to cover edge gaps
         var foregroundScale by remember { mutableFloatStateOf(1.15f) } // Overscan/bleed scale to cover edges during rocking rotation
@@ -356,7 +356,7 @@ fun PirateBlasterScreen(
         var barrelLetterVerticalOffset by remember { mutableFloatStateOf(0f) } // Vertical offset for barrel letters (+ down, - up)
         var heroScale by remember { mutableFloatStateOf(0.25f) } // Hero avatar scale factor (smaller = smaller hero)
         var foregroundVerticalOffset by remember { mutableFloatStateOf(50f) } // Vertical offset for foreground dock (+ down, - up)
-        var wordDisplayBottomPadding by remember { mutableFloatStateOf(16f) } // Bottom padding for missing letters word display
+        var wordDisplayBottomPadding by remember { mutableFloatStateOf(5f) } // Bottom padding for missing letters word display
 // ===============================================================
 
         val density = LocalDensity.current
