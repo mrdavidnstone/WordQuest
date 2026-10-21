@@ -9,13 +9,11 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import androidx.core.view.ViewCompat
+import android.util.Log
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.ui.graphics.drawscope.withTransform
-import kotlin.math.cos
-import kotlin.math.sin
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -34,9 +32,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -59,7 +55,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlin.math.roundToInt
 import com.spellarcade.app.data.model.AvatarConfig
 import com.spellarcade.app.ui.components.ActiveListBadge
-import com.spellarcade.app.ui.components.ReadyOverlay
 import com.spellarcade.app.ui.components.avatar.HeroAnimationState
 import com.spellarcade.app.ui.components.avatar.HeroSprite
 import com.spellarcade.app.ui.screens.profile.character.CharacterLayerType
@@ -126,7 +121,6 @@ fun PirateBlasterScreen(
                 .fillMaxSize()
                 .background(Color(0xFF030712))
         ) {
-            // Full-Size Title Logo Overlay (Exact size & position matching Lab Meltdown)
             if (titleBitmap != null) {
                 Image(
                     bitmap = titleBitmap,
@@ -136,11 +130,7 @@ fun PirateBlasterScreen(
                 )
             }
 
-            // Foreground UI Layer (3-Tier Layout: Top Back Button, Center Info Card, Bottom Action Button)
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // TOP SECTION: Back Button
+            Column(modifier = Modifier.fillMaxSize()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -151,13 +141,10 @@ fun PirateBlasterScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                     }
-
                     Spacer(Modifier.height(48.dp))
-
                     Spacer(Modifier.width(48.dp))
                 }
 
-                // Inner Layout for Center Info Card & Bottom Play Button
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -167,7 +154,6 @@ fun PirateBlasterScreen(
                 ) {
                     Spacer(Modifier.weight(1f))
 
-                    // CENTER SECTION: Game Information & Lesson Selector
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -191,9 +177,7 @@ fun PirateBlasterScreen(
                                 fontSize = 15.sp,
                                 lineHeight = 22.sp
                             )
-
                             Spacer(Modifier.height(18.dp))
-
                             ActiveListBadge(
                                 listName = uiState.listName,
                                 allLists = uiState.allLists,
@@ -204,7 +188,6 @@ fun PirateBlasterScreen(
 
                     Spacer(Modifier.weight(1f))
 
-                    // BOTTOM SECTION: Play Game Action Button
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -226,9 +209,7 @@ fun PirateBlasterScreen(
                                     .fillMaxWidth()
                                     .height(54.dp),
                                 shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFD97706)
-                                )
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
                             ) {
                                 Text("PLAY GAME", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Color.White)
                             }
@@ -255,8 +236,9 @@ fun PirateBlasterScreen(
     var cheerCount by remember { mutableIntStateOf(0) }
     var missCount by remember { mutableIntStateOf(0) }
     var isPaused by remember { mutableStateOf(false) }
+
+    // Visual placement of the cannon sprite (dp) – only affects the drawn cannon image
     var cannonHorizontalOffset by remember { mutableFloatStateOf(0f) }
-    var cannonBallVerticalOffset by remember { mutableFloatStateOf(-105f) }
 
     // Screen Shake effect for damage & game over
     val shakeAnim = remember { Animatable(0f) }
@@ -275,8 +257,17 @@ fun PirateBlasterScreen(
         }
     }
 
-    LaunchedEffect(cannonHorizontalOffset, cannonBallVerticalOffset) {
-        viewModel.setCannonSettings(cannonHorizontalOffset, cannonBallVerticalOffset)
+    // ============================================================
+    // CANNONBALL START POSITION (screen ratios 0..1)
+    // ViewModel does: startX = 0.50 + horizontalOffset
+    //                 startY = 0.82 + verticalOffset
+    // Tune these two numbers if the ball still looks off.
+    // ============================================================
+    LaunchedEffect(Unit) {
+        viewModel.setCannonSettings(
+            horizontalOffset = 0.00f,   // 0 = dead center
+            verticalOffset   = 0.08f    // positive = lower on screen (closer to dock)
+        )
     }
 
     LaunchedEffect(uiState.isCorrect) {
@@ -341,28 +332,25 @@ fun PirateBlasterScreen(
         val rightWordBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/right_word.png") }
 
         // ===================== ADJUSTABLE SETTINGS =====================
-        var backgroundScrollSpeed by remember { mutableFloatStateOf(105f) }   // pixels per second
-        var zoomFactor by remember { mutableFloatStateOf(1.0f) }           // 1.0 = exact height, higher = zoom in
-        var backgroundVerticalOffset by remember { mutableFloatStateOf(-40f) } // dp (0 = aligned to top)
-        var cannonBottomPadding by remember { mutableFloatStateOf(40f) } // Lower toward bottom of screen
-        var cannonScale by remember { mutableFloatStateOf(1.3f) } // Cannon scale factor
+        var backgroundScrollSpeed by remember { mutableFloatStateOf(105f) }
+        var zoomFactor by remember { mutableFloatStateOf(1.0f) }
+        var backgroundVerticalOffset by remember { mutableFloatStateOf(-40f) }
+        var cannonBottomPadding by remember { mutableFloatStateOf(40f) }   // visual only
         var heroBottomPadding by remember { mutableFloatStateOf(120f) }
-        var heroHorizontalOffset by remember { mutableFloatStateOf(200f) } // Horizontal offset (+ right, - left)
+        var heroHorizontalOffset by remember { mutableFloatStateOf(200f) }
         var parrotBottomPadding by remember { mutableFloatStateOf(135f) }
         var parrotStartPadding by remember { mutableFloatStateOf(70f) }
-        var foregroundWidthScale by remember { mutableFloatStateOf(1.02f) } // 1.02 = slightly wider to cover edge gaps
-        var foregroundScale by remember { mutableFloatStateOf(1.15f) } // Overscan/bleed scale to cover edges during rocking rotation
-        var seamOffset by remember { mutableFloatStateOf(-900f) } // Fine-tune loop gap (+ to add gap, - for overlap)
-        var barrelLetterVerticalOffset by remember { mutableFloatStateOf(0f) } // Vertical offset for barrel letters (+ down, - up)
-        var heroScale by remember { mutableFloatStateOf(0.25f) } // Hero avatar scale factor (smaller = smaller hero)
-        var foregroundVerticalOffset by remember { mutableFloatStateOf(50f) } // Vertical offset for foreground dock (+ down, - up)
-        var wordDisplayBottomPadding by remember { mutableFloatStateOf(5f) } // Bottom padding for missing letters word display
-// ===============================================================
+        var foregroundScale by remember { mutableFloatStateOf(1.15f) }
+        var seamOffset by remember { mutableFloatStateOf(-900f) }
+        var barrelLetterVerticalOffset by remember { mutableFloatStateOf(0f) }
+        var heroScale by remember { mutableFloatStateOf(0.25f) }
+        var foregroundVerticalOffset by remember { mutableFloatStateOf(50f) }
+        var wordDisplayBottomPadding by remember { mutableFloatStateOf(5f) }
+        // ===============================================================
 
         val density = LocalDensity.current
         val screenHeightPx = with(density) { canvasH.toPx() }
 
-// Use REAL bitmap size (2172x724)
         val originalWidthPx = scene1Bitmap?.width?.toFloat() ?: 2172f
         val originalHeightPx = scene1Bitmap?.height?.toFloat() ?: 724f
 
@@ -374,14 +362,12 @@ fun PirateBlasterScreen(
 
         var scrollDistance by remember { mutableFloatStateOf(0f) }
 
-// Continuous scrolling
         LaunchedEffect(Unit) {
             var lastTime = withFrameNanos { it }
             while (true) {
                 val currentTime = withFrameNanos { it }
                 val delta = (currentTime - lastTime) / 1_000_000_000f
                 lastTime = currentTime
-
                 if (delta in 0.001f..0.1f) {
                     scrollDistance += backgroundScrollSpeed * delta
                 }
@@ -389,16 +375,12 @@ fun PirateBlasterScreen(
         }
 
         val roundedWidth = (imageWidthPx + seamOffset).roundToInt().toFloat()
-        val x1 = - (scrollDistance % roundedWidth).roundToInt().toFloat()
+        val x1 = -(scrollDistance % roundedWidth).roundToInt().toFloat()
         val x2 = x1 + roundedWidth
 
-// ===================== BACKGROUND =====================
+        // ===================== BACKGROUND =====================
         if (scene1Bitmap != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                // First copy
+            Box(modifier = Modifier.fillMaxSize()) {
                 Image(
                     bitmap = scene1Bitmap,
                     contentDescription = null,
@@ -413,8 +395,6 @@ fun PirateBlasterScreen(
                         },
                     contentScale = ContentScale.FillBounds
                 )
-
-                // Second copy
                 Image(
                     bitmap = scene1Bitmap,
                     contentDescription = null,
@@ -440,7 +420,6 @@ fun PirateBlasterScreen(
             val isExploding = target.state == PirateTargetState.HIT_CORRECT || target.state == PirateTargetState.HIT_INCORRECT
 
             if (isExploding) {
-                // Play 15-frame barrel explosion animation matching exact barrel dimensions with letter visible for first few frames
                 BarrelExplosionOverlay(
                     letter = target.letter,
                     scale = target.scale,
@@ -461,7 +440,6 @@ fun PirateBlasterScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Real Barrel Asset Image with Target Circle
                     if (barrelBitmap != null) {
                         Image(
                             bitmap = barrelBitmap,
@@ -478,7 +456,6 @@ fun PirateBlasterScreen(
                         ) {}
                     }
 
-                    // Weathered Stencil Letter centered over the painted white circle target
                     Text(
                         text = target.letter.toString(),
                         fontSize = (24 * target.scale).sp,
@@ -499,10 +476,14 @@ fun PirateBlasterScreen(
             val shotX = canvasW * (shot.startRatio.x + (shot.targetRatio.x - shot.startRatio.x) * p)
             val shotY = canvasH * (shot.startRatio.y + (shot.targetRatio.y - shot.startRatio.y) * p)
 
-            CannonballShotOverlay(
+            Box(
                 modifier = Modifier
-                    .offset(x = shotX - 18.dp, y = shotY - 18.dp)
-                    .zIndex(4f)
+                    .offset(x = shotX - 14.dp, y = shotY - 14.dp)
+                    .size(28.dp)
+                    .zIndex(1000f)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1E293B))
+                    .border(2.dp, Color(0xFFF59E0B), CircleShape)
             )
         }
 
@@ -511,16 +492,15 @@ fun PirateBlasterScreen(
             val bitmapWidth = foregroundBitmap.width.toFloat()
             val bitmapHeight = foregroundBitmap.height.toFloat()
 
-            val extraWidth = 60.dp
             Box(
                 modifier = Modifier
-                     .fillMaxSize()
+                    .fillMaxSize()
                     .zIndex(3f),
                 contentAlignment = Alignment.BottomCenter
             ) {
                 Box(
                     modifier = Modifier
-                         .fillMaxSize()
+                        .fillMaxSize()
                         .offset(y = foregroundVerticalOffset.dp)
                         .graphicsLayer {
                             scaleX = foregroundScale
@@ -530,12 +510,11 @@ fun PirateBlasterScreen(
                             transformOrigin = TransformOrigin(0.5f, 1.0f)
                         }
                 ) {
-
                     Image(
                         bitmap = foregroundBitmap,
                         contentDescription = "Foreground Dock",
                         modifier = Modifier
-                             .fillMaxSize()
+                            .fillMaxSize()
                             .aspectRatio(
                                 if (bitmapWidth > 0f && bitmapHeight > 0f)
                                     bitmapWidth / bitmapHeight
@@ -544,7 +523,6 @@ fun PirateBlasterScreen(
                         contentScale = ContentScale.FillWidth
                     )
 
-                    // PIRATE PARROT PERCHED ON LEFT DOCK POST (Synchronized inside dock rocking container)
                     if (parrotBitmap != null) {
                         Box(
                             modifier = Modifier
@@ -559,7 +537,6 @@ fun PirateBlasterScreen(
                                 celebrate = uiState.isFinished && uiState.score >= uiState.total
                             )
 
-                            // Independent floating speech bubble above parrot (zero layout impact on hero/cannon)
                             galleryState.pirateSpeech?.let { speech ->
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
@@ -582,7 +559,7 @@ fun PirateBlasterScreen(
                         }
                     }
 
-                    // Independent Cannon Box (zIndex 2.0f)
+                    // Cannon sprite (visual only)
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -593,13 +570,14 @@ fun PirateBlasterScreen(
                             .zIndex(2.0f)
                     ) {
                         CannonAimingView(
-                            modifier = Modifier.size(180.dp),
-                            cannonAngle = galleryState.cannonAngle,
-                            scale = cannonScale
+                            modifier = Modifier.size(154.dp),
+                            aimX = galleryState.aimX,
+                            aimY = galleryState.aimY,
+                            scale = 1.0f
                         )
                     }
 
-                    // Independent Hero Box (zIndex 2.5f)
+                    // Hero
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
@@ -618,7 +596,7 @@ fun PirateBlasterScreen(
                                     scaleX = heroScale
                                     scaleY = heroScale
                                 },
-                            animationState = HeroAnimationState.IDLE, // Locked to IDLE so hero never jumps or repositions
+                            animationState = HeroAnimationState.IDLE,
                             sway = false,
                             breath = false,
                             overrideTopPath = "sprites/special/pirate_blaster/pirate_blaster_clothes.png",
@@ -633,78 +611,6 @@ fun PirateBlasterScreen(
                 }
             }
         }
-        galleryState.targets.filter { it.state != PirateTargetState.DESTROYED }.forEach { target ->
-            val targetX = canvasW * target.x
-            val targetY = (canvasH * target.y) + waveBob.dp
-
-            val isExploding = target.state == PirateTargetState.HIT_CORRECT || target.state == PirateTargetState.HIT_INCORRECT
-
-            if (isExploding) {
-                // Play 15-frame barrel explosion animation matching exact barrel dimensions with letter visible for first few frames
-                BarrelExplosionOverlay(
-                    letter = target.letter,
-                    scale = target.scale,
-                    modifier = Modifier
-                        .offset(x = targetX - (34 * target.scale).dp, y = targetY - (40 * target.scale).dp)
-                        .size(width = (68 * target.scale).dp, height = (80 * target.scale).dp)
-                        .zIndex(3f + target.scale)
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .offset(x = targetX - (34 * target.scale).dp, y = targetY - (40 * target.scale).dp)
-                        .size(width = (68 * target.scale).dp, height = (80 * target.scale).dp)
-                        .zIndex(target.scale)
-                        .clickable(
-                            enabled = !galleryState.isFiring && !galleryState.isResolving && !uiState.showFeedback,
-                            onClick = { viewModel.fireAtTarget(target) }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Real Barrel Asset Image with Target Circle
-                    if (barrelBitmap != null) {
-                        Image(
-                            bitmap = barrelBitmap,
-                            contentDescription = "Barrel Target",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
-                        )
-                    } else {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF78350F),
-                            border = BorderStroke(2.dp, Color(0xFFF59E0B)),
-                            modifier = Modifier.fillMaxSize()
-                        ) {}
-                    }
-
-                    // Weathered Stencil Letter centered over the painted white circle target
-                    Text(
-                        text = target.letter.toString(),
-                        fontSize = (24 * target.scale).sp,
-                        fontWeight = FontWeight.Black,
-                        fontFamily = FontFamily.Serif,
-                        color = Color(0xFF0F2B48),
-                        modifier = Modifier
-                            .offset(y = barrelLetterVerticalOffset.dp)
-                            .graphicsLayer { alpha = 0.92f }
-                    )
-                }
-            }
-        }
-
-        // ===================== CANNONBALL =====================
-        galleryState.activeShot?.let { shot ->
-            val p = shot.progress
-            val shotX = canvasW * (shot.startRatio.x + (shot.targetRatio.x - shot.startRatio.x) * p)
-            val shotY = canvasH * (shot.startRatio.y + (shot.targetRatio.y - shot.startRatio.y) * p)
-
-            CannonballShotOverlay(
-                modifier = Modifier
-                    .offset(x = shotX - 18.dp, y = shotY - 18.dp)
-                    .zIndex(4f)
-            )
-        }
 
         // ===================== WORD DISPLAY =====================
         Box(
@@ -715,7 +621,6 @@ fun PirateBlasterScreen(
                 .zIndex(100f),
             contentAlignment = Alignment.Center
         ) {
-            // Wooden sign background container composed of left, repeating middle (per letter), and right
             Row(
                 modifier = Modifier.height(64.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -755,7 +660,6 @@ fun PirateBlasterScreen(
                 }
             }
 
-            // Letter tiles overlaid on top of the wooden sign background
             Row(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -792,13 +696,9 @@ fun PirateBlasterScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Left: Hearts Banner
             HeartsBanner(healthUnits = galleryState.healthUnits, difficulty = uiState.overallDifficulty)
-
-            // Top Center: Coin Box Banner
             CoinBanner(coins = galleryState.coins)
 
-            // Top Right: Pause Button
             val pauseBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/pause.png") }
             IconButton(
                 onClick = { isPaused = true },
@@ -1009,11 +909,13 @@ private fun HeartsBanner(
     val emptyHeartBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/empty_heart.png") }
 
     val numHearts = when (difficulty) {
-        1 -> 5 // Easy: 5 hearts (10 half-heart units)
-        2 -> 4 // Medium: 4 hearts (8 half-heart units)
-        3 -> 3 // Hard: 3 hearts (6 half-heart units)
+        1 -> 5
+        2 -> 4
+        3 -> 3
         else -> 5
     }
+
+    Log.d("PirateBlaster", "HEART_UI_UPDATE: healthUnits=$healthUnits, displayedHearts=$numHearts")
 
     Box(
         modifier = modifier.height(52.dp),
@@ -1140,7 +1042,6 @@ private fun BarrelExplosionOverlay(
             )
         }
 
-        // Keep the letter visible during the first few frames (frameIndex <= 3) before dissolving
         if (letter != null && frameIndex <= 3) {
             Text(
                 text = letter.toString(),
@@ -1161,30 +1062,24 @@ private fun BarrelExplosionOverlay(
 @Composable
 fun CannonAimingView(
     modifier: Modifier = Modifier,
-    cannonAngle: Float,
-    scale: Float = 0.45f
+    aimX: Float = 0f,
+    aimY: Float = 0f,
+    scale: Float = 1.0f
 ) {
     val context = LocalContext.current
     val manager = remember(context) { CannonSpriteManager.getInstance(context) }
-    var yawIndex by remember { mutableIntStateOf(2) }
-    var pitchIndex by remember { mutableIntStateOf(2) }
 
-    val rad = Math.toRadians(cannonAngle.toDouble())
-    val aimX = cos(rad).toFloat()
-    val aimY = -sin(rad).toFloat()
-
-    LaunchedEffect(aimX, aimY) {
-        val (yI, pI) = getAimIndices(aimX, aimY, yawIndex, pitchIndex)
-        yawIndex = yI
-        pitchIndex = pI
-    }
+    val rawYaw = (aimX.coerceIn(-1f, 1f) * 2f) + 2f // 0..4
+    val rawPitch = 2f - (aimY.coerceIn(-1f, 1f) * 2f) // 0..4
+    val yawIndex = rawYaw.roundToInt().coerceIn(0, 4)
+    val pitchIndex = rawPitch.roundToInt().coerceIn(0, 4)
 
     val sprite = manager.getSprite(yawIndex, pitchIndex)
 
     Canvas(modifier = modifier) {
         val bmp = sprite?.bitmap ?: return@Canvas
         val pivot = manager.pivot
-        val s = scale // Uniform scale
+        val s = 1.0f
 
         val mountX = size.width / 2f
         val mountY = size.height
@@ -1196,7 +1091,7 @@ fun CannonAimingView(
             drawImage(
                 image = bmp,
                 dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
-                dstSize = IntSize((bmp.width * s).roundToInt(), (bmp.height * s).roundToInt())
+                dstSize = IntSize(bmp.width, bmp.height)
             )
         }
 
@@ -1209,38 +1104,5 @@ fun CannonAimingView(
         } else {
             drawOp()
         }
-    }
-}
-
-@Composable
-private fun CannonballShotOverlay(
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    var frameIndex by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(Unit) {
-        val frameMs = 60L // 16 frames @ 60ms per frame
-        var index = 0
-        while (true) {
-            frameIndex = index
-            delay(frameMs)
-            index = (index + 1) % 16
-        }
-    }
-
-    val formattedFrame = if (frameIndex < 10) "0$frameIndex" else "$frameIndex"
-    val framePath = "games/pirate_blaster/animations/cannonball/cannonball_$formattedFrame.png"
-    val cannonballBitmap = remember(context, framePath) {
-        loadAssetImageBitmap(context, framePath)
-    }
-
-    if (cannonballBitmap != null) {
-        Image(
-            bitmap = cannonballBitmap,
-            contentDescription = "Animated Cannonball",
-            modifier = modifier.size(36.dp),
-            contentScale = ContentScale.Fit
-        )
     }
 }

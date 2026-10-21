@@ -54,6 +54,8 @@ data class PirateBlasterUiState(
     val spawnQueue: List<SpawnItem> = emptyList(),
     val activeShot: PirateCannonShot? = null,
     val cannonAngle: Float = -90f,
+    val aimX: Float = 0f,
+    val aimY: Float = 0f,
     val missesCount: Int = 0,
     val coins: Int = 0,
     val cannonHorizontalOffset: Float = 0f,
@@ -304,6 +306,7 @@ class PirateBlasterViewModel @Inject constructor(
                         )
                     )
                 } else if (target.isCorrect && target.retriesLeft <= 0) {
+                    Log.d("PirateBlaster", "BARREL_MISS: barrel ID=${target.id}, letter=${target.letter}, retry allowance exhausted")
                     inflictDamage()
 
                     val word = uiState.value.currentWord?.text ?: ""
@@ -452,33 +455,40 @@ class PirateBlasterViewModel @Inject constructor(
         val dy = targetPos.y - cannonPos.y
         val angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
 
+        val aimX = ((targetPos.x - 0.50f) / 0.50f).coerceIn(-1f, 1f)
+        val aimY = ((0.82f - targetPos.y) / 0.60f).coerceIn(-1f, 1f)
+
         _blasterState.update {
             it.copy(
                 isFiring = true,
                 cannonAngle = angleDeg,
+                aimX = aimX,
+                aimY = aimY,
                 activeShot = PirateCannonShot(startRatio = cannonPos, targetRatio = targetPos, target = null, progress = 0f)
             )
         }
 
         viewModelScope.launch {
-            val durationMs = 300L
-            val steps = 12
-            val stepDelay = durationMs / steps
+            try {
+                val durationMs = 400L
+                val steps = 20
+                val stepDelay = durationMs / steps
 
-            for (i in 1..steps) {
-                delay(stepDelay)
-                val p = i.toFloat() / steps
-                _blasterState.update { cur ->
-                    val shot = cur.activeShot ?: return@update cur
-                    cur.copy(activeShot = shot.copy(progress = p))
+                for (i in 1..steps) {
+                    delay(stepDelay)
+                    val p = i.toFloat() / steps
+                    _blasterState.update { cur ->
+                        val shot = cur.activeShot ?: return@update cur
+                        cur.copy(activeShot = shot.copy(progress = p))
+                    }
                 }
-            }
-
-            _blasterState.update {
-                it.copy(
-                    isFiring = false,
-                    activeShot = null
-                )
+            } finally {
+                _blasterState.update {
+                    it.copy(
+                        isFiring = false,
+                        activeShot = null
+                    )
+                }
             }
         }
     }
@@ -495,25 +505,36 @@ class PirateBlasterViewModel @Inject constructor(
         val dy = target.y - cannonPos.y
         val angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
 
+        val aimX = ((target.x - 0.50f) / 0.50f).coerceIn(-1f, 1f)
+        val aimY = ((0.82f - target.y) / 0.60f).coerceIn(-1f, 1f)
+
         _blasterState.update {
             it.copy(
                 isFiring = true,
                 cannonAngle = angleDeg,
+                aimX = aimX,
+                aimY = aimY,
                 activeShot = PirateCannonShot(startRatio = cannonPos, targetRatio = Offset(target.x, target.y), target = target, progress = 0f)
             )
         }
 
         viewModelScope.launch {
-            val durationMs = 300L
-            val steps = 12
-            val stepDelay = durationMs / steps
+            try {
+                val durationMs = 400L
+                val steps = 20
+                val stepDelay = durationMs / steps
 
-            for (i in 1..steps) {
-                delay(stepDelay)
-                val p = i.toFloat() / steps
+                for (i in 1..steps) {
+                    delay(stepDelay)
+                    val p = i.toFloat() / steps
+                    _blasterState.update { cur ->
+                        val shot = cur.activeShot ?: return@update cur
+                        cur.copy(activeShot = shot.copy(progress = p))
+                    }
+                }
+            } finally {
                 _blasterState.update { cur ->
-                    val shot = cur.activeShot ?: return@update cur
-                    cur.copy(activeShot = shot.copy(progress = p))
+                    if (cur.isFiring) cur.copy(isFiring = false, activeShot = null) else cur
                 }
             }
 
