@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,12 +28,17 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.spellarcade.app.ui.components.*
 import com.spellarcade.app.data.model.AvatarConfig
 import com.spellarcade.app.ui.components.avatar.HeroAnimationState
@@ -43,7 +49,12 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.delay
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -417,10 +428,12 @@ fun PetSpaScreen(
                             .offset(y = (-20).dp + petVerticalOffset.dp)
                     )
 
+                    // Soap bubbles: same size/position as the tub image so the water ellipse lines up.
+                    // Set tubAspectRatio to tub PNG width / height if it isn't square.
                     TubBubblesOverlay(
-                        modifier = Modifier
-                            .size(180.dp)
-                            .offset(y = (-10).dp)
+                        modifier = Modifier.fillMaxSize(),
+                        tubAspectRatio = 1f,
+                        config = BubbleConfig() // e.g. BubbleConfig(maxBubbles = 4)
                     )
 
                     val tubOverlayBitmap = remember(context) { loadAssetImageBitmap(context, "games/pet_spa/pet_tub_overlay.png") }
@@ -803,96 +816,233 @@ private fun PuppySprite(
     }
 }
 
-data class BubbleParticle(
-    val id: Long,
-    val startX: Float,
-    val startY: Float,
-    val size: Float,
-    val riseDistance: Float,
-    val durationMs: Long,
-    val swayPx: Float,
-    val phase: Float,
-    val startTime: Long
+// =====================================================================
+// SOAP BUBBLES: float up from the water surface, then pop
+// =====================================================================
+
+private const val BUBBLE_DIR = "games/pet_spa/animations/tub_bubbles/frames_256"
+private const val VISIBLE_FRACTION = 0.52f // visible bubble fills ~52% of the 256px frame
+
+/** Tunable settings. Fractions are relative to the tub image width unless noted. */
+data class BubbleConfig(
+    val minSpawnIntervalMs: Long = 1200L,
+    val maxSpawnIntervalMs: Long = 2600L,
+    val maxBubbles: Int = 5,
+    val minDiameterFrac: Float = 0.035f,
+    val maxDiameterFrac: Float = 0.07f,
+    val minRiseFrac: Float = 0.15f,
+    val maxRiseFrac: Float = 0.26f,
+    val minRiseDurationMs: Long = 3000L,
+    val maxRiseDurationMs: Long = 4500L,
+    val minSwayDp: Float = 8f,
+    val maxSwayDp: Float = 22f,
+    val minSwayCycles: Float = 1f,
+    val maxSwayCycles: Float = 2f,
+    val minSpacingFrac: Float = 0.20f,     // min horizontal gap from previous spawn
+    // Water ellipse as fractions of the tub image
+    val waterLeft: Float = 0.10f,
+    val waterRight: Float = 0.90f,
+    val waterTop: Float = 0.40f,
+    val waterBottom: Float = 0.58f,
+    val floatFrameMs: Long = 90L,
+    val popFrameMs: Long = 70L
 )
 
+private data class BubbleSpec(
+    val id: Long,
+    val cx: Float,          // start center, px within tub rect
+    val cy: Float,
+    val diameter: Float,    // visible diameter, px
+    val rise: Float,        // px
+    val durationMs: Int,
+    val swayPx: Float,
+    val swayCycles: Float
+)
+
+/**
+ * Place this over the tub image with the SAME size/position as the tub Image.
+ * [tubAspectRatio] = tub image width / height (used because the tub is drawn with ContentScale.Fit).
+ */
 @Composable
-private fun TubBubblesOverlay(
-    modifier: Modifier = Modifier
+fun TubBubblesOverlay(
+    modifier: Modifier = Modifier,
+    config: BubbleConfig = BubbleConfig(),
+    tubAspectRatio: Float = 1f
 ) {
     val context = LocalContext.current
-    val bubbleBitmaps = remember(context) {
-        (1..8).map { i ->
-            val formatted = if (i < 10) "0$i" else "$i"
-            loadAssetImageBitmap(context, "games/pet_spa/animations/tub_bubbles/frames_256/bubble_float_$formatted.png")
-        }
+    val floatFrames = remember(context) {
+        (1..8).map { loadAssetImageBitmap(context, "$BUBBLE_DIR/bubble_float_%02d.png".format(it)) }
+    }
+    val popFrames = remember(context) {
+        (1..6).map { loadAssetImageBitmap(context, "$BUBBLE_DIR/bubble_pop_%02d.png".format(it)) }
     }
 
-    var bubbles by remember { mutableStateOf(listOf<BubbleParticle>()) }
-    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // Start/stop spawning with the lifecycle (onResume / onPause)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var resumed by remember {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) resumed = true
+            if (event == Lifecycle.Event.ON_PAUSE) resumed = false
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
-    LaunchedEffect(Unit) {
-        val startTime = System.currentTimeMillis()
-        while (true) {
-            currentTime = System.currentTimeMillis()
-            val elapsed = currentTime - startTime
+    val bubbles = remember { mutableStateListOf<BubbleSpec>() }
+    val lastSpawnX = remember { floatArrayOf(Float.NaN) }
+    var nextId by remember { mutableLongStateOf(0L) }
 
-            if (bubbles.size < 8 && (bubbles.isEmpty() || elapsed - bubbles.last().startTime > (200L..500L).random())) {
-                val newBubble = BubbleParticle(
-                    id = currentTime + (0..999).random(),
-                    startX = (-0.80f + (0..160).random() / 100f), // spans full width from left to right across tub
-                    startY = (0.05f + (0..25).random() / 100f),
-                    size = (18 + (0..32).random()).toFloat(),
-                    riseDistance = (35 + (0..45).random()).toFloat(),
-                    durationMs = (2400L..3800L).random(),
-                    swayPx = (6 + (0..12).random()).toFloat(),
-                    phase = (0..628).random() / 100f,
-                    startTime = currentTime
+    @Suppress("UnusedBoxWithConstraintsScope")
+    BoxWithConstraints(modifier = modifier) {
+        val density = LocalDensity.current
+        val boxW = constraints.maxWidth.toFloat()
+        val boxH = constraints.maxHeight.toFloat()
+
+        // Rect the tub image actually occupies (ContentScale.Fit, centered)
+        val tubW = minOf(boxW, boxH * tubAspectRatio)
+        val tubH = tubW / tubAspectRatio
+        val originX = (boxW - tubW) / 2f
+        val originY = (boxH - tubH) / 2f
+
+        LaunchedEffect(resumed, tubW, tubH) {
+            if (!resumed || tubW <= 0f) return@LaunchedEffect
+            while (true) {
+                delay((config.minSpawnIntervalMs..config.maxSpawnIntervalMs).random())
+
+                if (bubbles.size >= config.maxBubbles) continue // never exceed the cap
+
+                // Uniform random point inside the water ellipse, spaced from the last bubble
+                val ecx = (config.waterLeft + config.waterRight) / 2f * tubW
+                val ecy = (config.waterTop + config.waterBottom) / 2f * tubH
+                val erx = (config.waterRight - config.waterLeft) / 2f * tubW
+                val ery = (config.waterBottom - config.waterTop) / 2f * tubH
+
+                val rnd = kotlin.random.Random
+                var x = ecx
+                var y = ecy
+                for (attempt in 0 until 12) {
+                    val r = sqrt(rnd.nextFloat())            // sqrt => uniform over the area
+                    val a = rnd.nextFloat() * 2f * PI.toFloat()
+                    x = ecx + erx * r * cos(a)
+                    y = ecy + ery * r * sin(a)
+                    val last = lastSpawnX[0]
+                    if (last.isNaN() || abs(x - last) >= config.minSpacingFrac * tubW) break
+                }
+                lastSpawnX[0] = x
+
+                val dir = if (rnd.nextBoolean()) 1f else -1f
+                bubbles.add(
+                    BubbleSpec(
+                        id = nextId++,
+                        cx = x,
+                        cy = y,
+                        diameter = tubW * (rnd.nextFloat() * (config.maxDiameterFrac - config.minDiameterFrac) + config.minDiameterFrac),
+                        rise = tubW * (rnd.nextFloat() * (config.maxRiseFrac - config.minRiseFrac) + config.minRiseFrac),
+                        durationMs = (config.minRiseDurationMs..config.maxRiseDurationMs).random().toInt(),
+                        swayPx = with(density) {
+                            (rnd.nextFloat() * (config.maxSwayDp - config.minSwayDp) + config.minSwayDp).dp.toPx()
+                        } * dir,
+                        swayCycles = rnd.nextFloat() * (config.maxSwayCycles - config.minSwayCycles) + config.minSwayCycles
+                    )
                 )
-                bubbles = (bubbles + newBubble)
             }
+        }
 
-            bubbles = bubbles.filter { bubble ->
-                (currentTime - bubble.startTime) < bubble.durationMs
+        bubbles.forEach { spec ->
+            key(spec.id) {
+                BubbleView(
+                    spec = spec,
+                    floatFrames = floatFrames,
+                    popFrames = popFrames,
+                    config = config,
+                    originX = originX,
+                    originY = originY,
+                    onFinished = { bubbles.removeAll { it.id == spec.id } }
+                )
             }
+        }
+    }
+}
 
-            delay(25L)
+@Composable
+private fun BubbleView(
+    spec: BubbleSpec,
+    floatFrames: List<ImageBitmap?>,
+    popFrames: List<ImageBitmap?>,
+    config: BubbleConfig,
+    originX: Float,
+    originY: Float,
+    onFinished: () -> Unit
+) {
+    val density = LocalDensity.current
+    val progress = remember { Animatable(0f) }   // 0..1 linear time through the rise
+    var popping by remember { mutableStateOf(false) }
+    var frame by remember { mutableIntStateOf(0) }
+
+    // Movement: rise, then pop when the top is reached
+    LaunchedEffect(popping) {
+        if (!popping) {
+            progress.animateTo(1f, tween(spec.durationMs, easing = LinearEasing))
+            popping = true
         }
     }
 
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        val globalElapsed = currentTime
-        bubbles.forEach { bubble ->
-            val age = (globalElapsed - bubble.startTime).toFloat()
-            val t = (age / bubble.durationMs).coerceIn(0f, 1f)
-            val eased = 1f - (1f - t) * (1f - t)
-            val sway = bubble.swayPx * sin(bubble.phase + t * 4 * Math.PI.toFloat()) * (0.4f + t)
-            val grow = (t / 0.15f).coerceIn(0f, 1f)
-            val alpha = if (t > 0.85f) (1.0f - (t - 0.85f) / 0.15f).coerceIn(0f, 1f) else grow.coerceAtMost(1f)
+    // Frames: float loop (90 ms) while rising, pop once (70 ms) then remove
+    LaunchedEffect(popping) {
+        if (!popping) {
+            var i = 0
+            while (true) {
+                frame = i % floatFrames.size
+                delay(config.floatFrameMs)
+                i++
+            }
+        } else {
+            for (i in popFrames.indices) {
+                frame = i
+                delay(config.popFrameMs)
+            }
+            onFinished()
+        }
+    }
 
-            val frameIndex = ((age / 90) % 8).toInt()
-            val bmp = bubbleBitmaps.getOrNull(frameIndex)
+    val viewSizePx = spec.diameter / VISIBLE_FRACTION
+    val viewSizeDp = with(density) { viewSizePx.toDp() }
+    val bmp = if (popping) popFrames.getOrNull(frame) else floatFrames.getOrNull(frame)
 
-            if (bmp != null) {
-                Box(
-                    modifier = Modifier
-                        .size(bubble.size.dp)
-                        .graphicsLayer {
-                            translationX = bubble.startX * 130f + sway
-                            translationY = 25f - bubble.startY * 40f - bubble.riseDistance * eased
-                            scaleX = 0.3f + 0.7f * grow
-                            scaleY = scaleX
-                            this.alpha = alpha
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        bitmap = bmp,
-                        contentDescription = "Floating Bubble",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
+    if (bmp != null) {
+        Image(
+            bitmap = bmp,
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .size(viewSizeDp)
+                .offset {
+                    val t = progress.value
+                    val eased = 1f - (1f - t) * (1f - t)                  // ease-out
+                    val sway = spec.swayPx * eased *                       // grows with height
+                            sin(2f * PI.toFloat() * spec.swayCycles * t)
+                    IntOffset(
+                        (originX + spec.cx + sway - viewSizePx / 2f).roundToInt(),
+                        (originY + spec.cy - spec.rise * eased - viewSizePx / 2f).roundToInt()
                     )
                 }
-            }
-        }
+                .graphicsLayer {
+                    if (popping) {
+                        scaleX = 1f; scaleY = 1f; alpha = 1f
+                    } else {
+                        val g = (progress.value / 0.12f).coerceIn(0f, 1f)  // grow/fade in over first 12%
+                        val s = 0.35f + 0.65f * g
+                        scaleX = s; scaleY = s; alpha = g
+                    }
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    enabled = !popping
+                ) { popping = true }                                       // tap to pop early
+        )
     }
 }
