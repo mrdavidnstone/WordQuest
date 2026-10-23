@@ -1,0 +1,21 @@
+{
+  "animation": "puppy_idle",
+  "frames": 24,
+  "frame_duration_ms": 80,
+  "loop": true,
+  "sheet_256": {
+    "file": "puppy_idle_sheet_256.png",
+    "columns": 6,
+    "rows": 4,
+    "frame_width": 208,
+    "frame_height": 260
+  },
+  "sheet_512": {
+    "file": "puppy_idle_sheet_512.png",
+    "columns": 4,
+    "rows": 6,
+    "frame_width": 416,
+    "frame_height": 520
+  },
+  "notes": "Frames are bottom-aligned and share one canvas; draw every frame at the same position."
+}

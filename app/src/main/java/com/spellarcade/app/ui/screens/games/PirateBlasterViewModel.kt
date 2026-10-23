@@ -60,8 +60,10 @@ data class PirateBlasterUiState(
     val coins: Int = 0,
     val cannonHorizontalOffset: Float = 0f,
     val cannonBallVerticalOffset: Float = -0.06f,
+    val minBarrelY: Float = 0.30f,
     val isFiring: Boolean = false,
     val isResolving: Boolean = false,
+    val isPaused: Boolean = false,
     val pirateSpeech: String? = null,
     val healthUnits: Int = 10,
     val maxHealthUnits: Int = 10,
@@ -187,19 +189,23 @@ class PirateBlasterViewModel @Inject constructor(
         }
 
         val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
-        val requiredItems = missingIndices.mapIndexed { reqIdx, wordIdx ->
-            val char = word[wordIdx]
-            SpawnItem(
-                letter = if (requireCaps) char else char.lowercaseChar(),
-                isCorrect = true,
-                requiredIndex = reqIdx,
-                retriesLeft = retriesAllowed
+        val requiredItems = mutableListOf<SpawnItem>()
+        val firstMissingIdx = missingIndices.firstOrNull()
+        if (firstMissingIdx != null) {
+            val char = word[firstMissingIdx]
+            requiredItems.add(
+                SpawnItem(
+                    letter = if (requireCaps) char else char.lowercaseChar(),
+                    isCorrect = true,
+                    requiredIndex = 0,
+                    retriesLeft = retriesAllowed
+                )
             )
         }
 
-        val correctChars = requiredItems.map { it.letter }.toSet()
+        val wordChars = word.map { if (requireCaps) it else it.lowercaseChar() }.toSet()
         val alphabet = if (requireCaps) ('A'..'Z').toList() else ('a'..'z').toList()
-        val distractors = alphabet.filter { it !in correctChars }.shuffled().take(6).map { ch ->
+        val distractors = alphabet.filter { it !in wordChars }.shuffled().take(5).map { ch ->
             SpawnItem(
                 letter = ch,
                 isCorrect = false,
@@ -272,9 +278,26 @@ class PirateBlasterViewModel @Inject constructor(
         }
     }
 
+    fun setBarrelMinY(minY: Float) {
+        _blasterState.update { it.copy(minBarrelY = minY) }
+    }
+
+    fun destroyTarget(id: String) {
+        _blasterState.update { cur ->
+            val updated = cur.targets.map { t ->
+                if (t.id == id) t.copy(state = PirateTargetState.DESTROYED) else t
+            }
+            cur.copy(targets = updated)
+        }
+    }
+
+    fun setPaused(paused: Boolean) {
+        _blasterState.update { it.copy(isPaused = paused) }
+    }
+
     private fun updateGameFrame(delta: Float) {
         val state = _blasterState.value
-        if (state.isResolving || uiState.value.showFeedback || uiState.value.isFinished) return
+        if (state.isPaused || state.isResolving || uiState.value.showFeedback || uiState.value.isFinished) return
 
         val difficulty = uiState.value.overallDifficulty
         val speedRatioPerSec = when (difficulty) {
@@ -310,13 +333,13 @@ class PirateBlasterViewModel @Inject constructor(
                     inflictDamage()
 
                     val word = uiState.value.currentWord?.text ?: ""
-                    val reqIdx = target.requiredIndex ?: state.currentPointer
-                    val targetIdx = state.missingIndices.getOrNull(reqIdx)
-                    if (targetIdx != null) {
-                        val correctChar = word[targetIdx]
+                    val nextMissingIdx = state.missingIndices.firstOrNull { idx -> state.maskedWord[idx] == '_' }
+
+                    if (nextMissingIdx != null) {
+                        val correctChar = word[nextMissingIdx]
                         val newMasked = state.maskedWord.toMutableList()
-                        newMasked[targetIdx] = correctChar
-                        val nextPointer = reqIdx + 1
+                        newMasked[nextMissingIdx] = correctChar
+                        val nextPointer = state.missingIndices.indexOf(nextMissingIdx) + 1
 
                         _blasterState.update { cur ->
                             cur.copy(
@@ -327,7 +350,8 @@ class PirateBlasterViewModel @Inject constructor(
                         }
                         showSpeech("Arrr! Missed letter! Taking damage!")
 
-                        if (nextPointer >= state.missingIndices.size) {
+                        val allFilled = newMasked.all { it != '_' } || nextPointer >= state.missingIndices.size
+                        if (allFilled) {
                             viewModelScope.launch {
                                 delay(500)
                                 submitAnswer(true)
@@ -366,25 +390,30 @@ class PirateBlasterViewModel @Inject constructor(
         val word = uiState.value.currentWord?.text ?: return emptyList()
         val requireCaps = uiState.value.requireCapitalLetters || word.any { it.isUpperCase() }
 
-        val remainingIndices = state.missingIndices.drop(state.currentPointer)
-        val requiredItems = remainingIndices.map { wordIdx ->
-            val char = word[wordIdx]
-            SpawnItem(
-                letter = if (requireCaps) char else char.lowercaseChar(),
-                isCorrect = true,
-                requiredIndex = state.missingIndices.indexOf(wordIdx),
-                retriesLeft = when (uiState.value.overallDifficulty) {
-                    1 -> 3
-                    2 -> 2
-                    3 -> 1
-                    else -> 3
-                }
+        val requiredItems = mutableListOf<SpawnItem>()
+        val currentReqIdx = state.currentPointer
+        val targetWordIdx = state.missingIndices.getOrNull(currentReqIdx)
+
+        if (targetWordIdx != null) {
+            val char = word[targetWordIdx]
+            requiredItems.add(
+                SpawnItem(
+                    letter = if (requireCaps) char else char.lowercaseChar(),
+                    isCorrect = true,
+                    requiredIndex = currentReqIdx,
+                    retriesLeft = when (uiState.value.overallDifficulty) {
+                        1 -> 3
+                        2 -> 2
+                        3 -> 1
+                        else -> 3
+                    }
+                )
             )
         }
 
-        val correctChars = requiredItems.map { it.letter }.toSet()
+        val wordChars = word.map { if (requireCaps) it else it.lowercaseChar() }.toSet()
         val alphabet = if (requireCaps) ('A'..'Z').toList() else ('a'..'z').toList()
-        val distractors = alphabet.filter { it !in correctChars }.shuffled().take(6).map { ch ->
+        val distractors = alphabet.filter { it !in wordChars }.shuffled().take(5).map { ch ->
             SpawnItem(
                 letter = ch,
                 isCorrect = false,
@@ -397,10 +426,11 @@ class PirateBlasterViewModel @Inject constructor(
     }
 
     private fun spawnBarrel(item: SpawnItem, activeBarrels: List<PirateTarget>): PirateTarget {
+        val state = _blasterState.value
         val occupiedTiers = activeBarrels.map { t ->
             when {
-                t.y < 0.33f -> 0
-                t.y < 0.48f -> 1
+                t.y < state.minBarrelY + 0.10f -> 0
+                t.y < state.minBarrelY + 0.25f -> 1
                 else -> 2
             }
         }.toSet()
@@ -409,9 +439,9 @@ class PirateBlasterViewModel @Inject constructor(
         val tier = availableTiers.random()
 
         val (scale, yPos) = when (tier) {
-            0 -> 0.75f to (0.22f + (0..4).random() * 0.02f)
-            1 -> 1.05f to (0.38f + (0..4).random() * 0.02f)
-            else -> 1.35f to (0.52f + (0..4).random() * 0.02f)
+            0 -> 0.75f to (state.minBarrelY + (0..4).random() * 0.02f).coerceAtLeast(state.minBarrelY)
+            1 -> 1.05f to (state.minBarrelY + 0.15f + (0..4).random() * 0.02f)
+            else -> 1.35f to (state.minBarrelY + 0.30f + (0..4).random() * 0.02f)
         }
 
         val spawnX = 1.15f + (0..5).random() * 0.04f

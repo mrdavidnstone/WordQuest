@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -283,7 +284,7 @@ fun PirateBlasterScreen(
 
     // Subtle Rocking / Floating Animation for Ship Foreground
     val dockAnim = rememberInfiniteTransition(label = "dock_floating")
-    val dockOffsetY by dockAnim.animateFloat(
+    val rawDockY by dockAnim.animateFloat(
         initialValue = -8f,
         targetValue = 8f,
         animationSpec = infiniteRepeatable(
@@ -292,7 +293,9 @@ fun PirateBlasterScreen(
         ),
         label = "dock_vertical"
     )
-    val dockRotation by dockAnim.animateFloat(
+    val dockOffsetY = if (uiState.isFinished) 0f else rawDockY
+
+    val rawDockRot by dockAnim.animateFloat(
         initialValue = -0.6f,
         targetValue = 0.6f,
         animationSpec = infiniteRepeatable(
@@ -301,6 +304,7 @@ fun PirateBlasterScreen(
         ),
         label = "dock_rotation"
     )
+    val dockRotation = if (uiState.isFinished) 0f else rawDockRot
 
     BoxWithConstraints(
         modifier = Modifier
@@ -312,7 +316,7 @@ fun PirateBlasterScreen(
             }
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
-                    if (!galleryState.isFiring && !galleryState.isResolving && !uiState.showFeedback && !uiState.isFinished) {
+                    if (!uiState.isFinished && !isPaused && !galleryState.isFiring && !galleryState.isResolving && !uiState.showFeedback) {
                         val ratioX = (offset.x / size.width).coerceIn(0f, 1f)
                         val ratioY = (offset.y / size.height).coerceIn(0f, 1f)
                         viewModel.fireAtPoint(ratioX, ratioY)
@@ -336,6 +340,8 @@ fun PirateBlasterScreen(
         var zoomFactor by remember { mutableFloatStateOf(1.0f) }
         var backgroundVerticalOffset by remember { mutableFloatStateOf(-40f) }
         var cannonBottomPadding by remember { mutableFloatStateOf(40f) }   // visual only
+        var cannonScale by remember { mutableFloatStateOf(1.5f) } // Cannon scale factor
+        var cannonballScale by remember { mutableFloatStateOf(28f) } // Cannonball size in dp
         var heroBottomPadding by remember { mutableFloatStateOf(120f) }
         var heroHorizontalOffset by remember { mutableFloatStateOf(200f) }
         var parrotBottomPadding by remember { mutableFloatStateOf(135f) }
@@ -360,7 +366,11 @@ fun PirateBlasterScreen(
 
         val verticalOffsetPx = 0f + with(density) { backgroundVerticalOffset.dp.toPx() }
 
-        var scrollDistance by remember { mutableFloatStateOf(0f) }
+        LaunchedEffect(isPaused) {
+        viewModel.setPaused(isPaused)
+    }
+
+    var scrollDistance by remember { mutableFloatStateOf(0f) }
 
         LaunchedEffect(Unit) {
             var lastTime = withFrameNanos { it }
@@ -368,7 +378,7 @@ fun PirateBlasterScreen(
                 val currentTime = withFrameNanos { it }
                 val delta = (currentTime - lastTime) / 1_000_000_000f
                 lastTime = currentTime
-                if (delta in 0.001f..0.1f) {
+                if (!isPaused && delta in 0.001f..0.1f) {
                     scrollDistance += backgroundScrollSpeed * delta
                 }
             }
@@ -423,6 +433,7 @@ fun PirateBlasterScreen(
                 BarrelExplosionOverlay(
                     letter = target.letter,
                     scale = target.scale,
+                    onComplete = { viewModel.destroyTarget(target.id) },
                     modifier = Modifier
                         .offset(x = targetX - (34 * target.scale).dp, y = targetY - (40 * target.scale).dp)
                         .size(width = (68 * target.scale).dp, height = (80 * target.scale).dp)
@@ -476,14 +487,11 @@ fun PirateBlasterScreen(
             val shotX = canvasW * (shot.startRatio.x + (shot.targetRatio.x - shot.startRatio.x) * p)
             val shotY = canvasH * (shot.startRatio.y + (shot.targetRatio.y - shot.startRatio.y) * p)
 
-            Box(
+            CannonballShotOverlay(
+                sizeDp = cannonballScale.dp,
                 modifier = Modifier
-                    .offset(x = shotX - 14.dp, y = shotY - 14.dp)
-                    .size(28.dp)
+                    .offset(x = shotX - (cannonballScale / 2f).dp, y = shotY - (cannonballScale / 2f).dp)
                     .zIndex(1000f)
-                    .clip(CircleShape)
-                    .background(Color(0xFF1E293B))
-                    .border(2.dp, Color(0xFFF59E0B), CircleShape)
             )
         }
 
@@ -570,10 +578,10 @@ fun PirateBlasterScreen(
                             .zIndex(2.0f)
                     ) {
                         CannonAimingView(
-                            modifier = Modifier.size(154.dp),
+                            modifier = Modifier.size((154f * cannonScale).dp),
                             aimX = galleryState.aimX,
                             aimY = galleryState.aimY,
-                            scale = 1.0f
+                            scale = cannonScale
                         )
                     }
 
@@ -613,73 +621,75 @@ fun PirateBlasterScreen(
         }
 
         // ===================== WORD DISPLAY =====================
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = wordDisplayBottomPadding.dp)
-                .systemBarsPadding()
-                .zIndex(100f),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                modifier = Modifier.height(64.dp),
-                verticalAlignment = Alignment.CenterVertically
+        if (!uiState.isFinished) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = wordDisplayBottomPadding.dp)
+                    .systemBarsPadding()
+                    .zIndex(2000f),
+                contentAlignment = Alignment.Center
             ) {
-                if (leftWordBitmap != null) {
-                    Image(
-                        bitmap = leftWordBitmap,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxHeight(),
-                        contentScale = ContentScale.FillHeight
-                    )
-                }
+                Row(
+                    modifier = Modifier.height(64.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (leftWordBitmap != null) {
+                        Image(
+                            bitmap = leftWordBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxHeight(),
+                            contentScale = ContentScale.FillHeight
+                        )
+                    }
 
-                val letterCount = galleryState.maskedWord.size.coerceAtLeast(1)
-                Row(modifier = Modifier.fillMaxHeight()) {
-                    repeat(letterCount) {
-                        if (middleWordBitmap != null) {
-                            Image(
-                                bitmap = middleWordBitmap,
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .width(44.dp),
-                                contentScale = ContentScale.FillBounds
-                            )
+                    val letterCount = galleryState.maskedWord.size.coerceAtLeast(1)
+                    Row(modifier = Modifier.fillMaxHeight()) {
+                        repeat(letterCount) {
+                            if (middleWordBitmap != null) {
+                                Image(
+                                    bitmap = middleWordBitmap,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .width(44.dp),
+                                    contentScale = ContentScale.FillBounds
+                                )
+                            }
                         }
+                    }
+
+                    if (rightWordBitmap != null) {
+                        Image(
+                            bitmap = rightWordBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxHeight(),
+                            contentScale = ContentScale.FillHeight
+                        )
                     }
                 }
 
-                if (rightWordBitmap != null) {
-                    Image(
-                        bitmap = rightWordBitmap,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxHeight(),
-                        contentScale = ContentScale.FillHeight
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                galleryState.maskedWord.forEachIndexed { i, ch ->
-                    val isTarget = galleryState.missingIndices.getOrNull(galleryState.currentPointer) == i
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isTarget) Color(0xFFF59E0B).copy(alpha = 0.9f) else Color(0xFF1E293B).copy(alpha = 0.85f),
-                        border = BorderStroke(1.5.dp, Color(0xFFF59E0B)),
-                        modifier = Modifier.size(width = 36.dp, height = 44.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                if (ch == '_') "" else ch.toString(),
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
+                Row(
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    galleryState.maskedWord.forEachIndexed { i, ch ->
+                        val isTarget = galleryState.missingIndices.getOrNull(galleryState.currentPointer) == i
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isTarget) Color(0xFFF59E0B).copy(alpha = 0.9f) else Color(0xFF1E293B).copy(alpha = 0.85f),
+                            border = BorderStroke(1.5.dp, Color(0xFFF59E0B)),
+                            modifier = Modifier.size(width = 36.dp, height = 44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    if (ch == '_') "" else ch.toString(),
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }
@@ -702,6 +712,7 @@ fun PirateBlasterScreen(
             val pauseBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/pause.png") }
             IconButton(
                 onClick = { isPaused = true },
+                enabled = !uiState.isFinished,
                 modifier = Modifier.size(42.dp)
             ) {
                 if (pauseBitmap != null) {
@@ -728,57 +739,123 @@ fun PirateBlasterScreen(
 
         // ===================== PAUSE OVERLAY =====================
         if (isPaused) {
+            val pausePanelBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/game_paused_panel.png") }
+            val continueBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/continue_playing_button.png") }
+            val restartBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/restart_game_button.png") }
+            val backBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/back_to_games_button.png") }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(300f)
+                    .zIndex(3000f)
                     .background(Color.Black.copy(alpha = 0.85f)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                Box(
                     modifier = Modifier
-                        .padding(24.dp)
-                        .background(Color(0xFF0F172A), RoundedCornerShape(24.dp))
-                        .border(BorderStroke(2.dp, Color(0xFFF59E0B)), RoundedCornerShape(24.dp))
-                        .padding(24.dp)
+                        .fillMaxWidth(0.80f)
+                        .aspectRatio(if (pausePanelBitmap != null) pausePanelBitmap.width.toFloat() / pausePanelBitmap.height.toFloat() else 16f/9f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        "⏸️ GAME PAUSED ⏸️",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Black,
-                        color = Color.White,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = { isPaused = false },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E))
-                    ) {
-                        Text("▶️ CONTINUE PLAYING", color = Color.White, fontWeight = FontWeight.Bold)
+                    if (pausePanelBitmap != null) {
+                        Image(
+                            bitmap = pausePanelBitmap,
+                            contentDescription = "Game Paused Panel",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0xFF0F172A),
+                            border = BorderStroke(2.dp, Color(0xFFF59E0B)),
+                            modifier = Modifier.fillMaxSize()
+                        ) {}
                     }
-                    Spacer(Modifier.height(10.dp))
-                    Button(
-                        onClick = {
-                            isPaused = false
-                            viewModel.startGame()
-                        },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
+
+                    // Buttons overlaid on top of the pause panel graphic
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth(0.60f)
+                            .padding(top = 110.dp)
                     ) {
-                        Text("🔄 RESTART NEW GAME", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = onBack,
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
-                    ) {
-                        Text("Back to Game Menu", color = Color.White)
+                        // Continue Playing Button
+                        if (continueBitmap != null) {
+                            Image(
+                                bitmap = continueBitmap,
+                                contentDescription = "Continue Playing",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clickable { isPaused = false },
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Button(
+                                onClick = { isPaused = false },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E))
+                            ) {
+                                Text("▶️ CONTINUE PLAYING", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // Restart New Game Button
+                        if (restartBitmap != null) {
+                            Image(
+                                bitmap = restartBitmap,
+                                contentDescription = "Restart New Game",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clickable {
+                                        isPaused = false
+                                        MusicManager.stopMusic()
+                                        MusicManager.playMusic(context, "music/pirate_blaster_scene1.wav")
+                                        viewModel.startGame()
+                                    },
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Button(
+                                onClick = {
+                                    isPaused = false
+                                    MusicManager.stopMusic()
+                                    MusicManager.playMusic(context, "music/pirate_blaster_scene1.wav")
+                                    viewModel.startGame()
+                                },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
+                            ) {
+                                Text("🔄 RESTART NEW GAME", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // Back to Games Button
+                        if (backBitmap != null) {
+                            Image(
+                                bitmap = backBitmap,
+                                contentDescription = "Back to Games",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clickable { onBack() },
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            OutlinedButton(
+                                onClick = onBack,
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+                            ) {
+                                Text("Back to Games", color = Color.White)
+                            }
+                        }
                     }
                 }
             }
@@ -804,6 +881,10 @@ fun PirateBlasterScreen(
         // ===================== RESULT OVERLAY =====================
         if (uiState.isFinished) {
             val isGameLost = galleryState.healthUnits <= 0 || galleryState.isGameOver
+            val gameOverPanelBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/game_over_panel.png") }
+            val restartBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/restart_game_button.png") }
+            val backBitmap = remember(context) { loadAssetImageBitmap(context, "games/pirate_blaster/back_to_games_button.png") }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -811,53 +892,97 @@ fun PirateBlasterScreen(
                     .background(Color.Black.copy(alpha = 0.85f)),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
+                Box(
                     modifier = Modifier
-                        .padding(24.dp)
-                        .background(Color(0xFF0F172A), RoundedCornerShape(24.dp))
-                        .border(BorderStroke(2.dp, if (isGameLost) Color(0xFFEF4444) else Color(0xFFF59E0B)), RoundedCornerShape(24.dp))
-                        .padding(24.dp)
+                        .fillMaxWidth(0.88f)
+                        .aspectRatio(if (gameOverPanelBitmap != null) gameOverPanelBitmap.width.toFloat() / gameOverPanelBitmap.height.toFloat() else 16f/9f),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        if (isGameLost) "💥 GAME OVER! 💥" else "🏴‍☠️ PIRATE VOYAGE COMPLETE! 🏴‍☠️",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Black,
-                        color = if (isGameLost) Color(0xFFEF4444) else Color.White,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        if (isGameLost) "The pirate ship suffered a critical defeat!" else "Score: ${uiState.score} / ${uiState.total}",
-                        fontSize = 16.sp,
-                        color = Color.White.copy(alpha = 0.8f),
-                        textAlign = TextAlign.Center
-                    )
-                    if (isGameLost) {
-                        Spacer(Modifier.height(4.dp))
-                        Text("Score: ${uiState.score} / ${uiState.total}", fontSize = 14.sp, color = Color.White.copy(alpha = 0.7f))
+                    if (gameOverPanelBitmap != null) {
+                        Image(
+                            bitmap = gameOverPanelBitmap,
+                            contentDescription = "Game Over Panel",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0xFF0F172A),
+                            border = BorderStroke(2.dp, if (isGameLost) Color(0xFFEF4444) else Color(0xFFF59E0B)),
+                            modifier = Modifier.fillMaxSize()
+                        ) {}
                     }
-                    Spacer(Modifier.height(20.dp))
-                    Button(
-                        onClick = {
-                            MusicManager.stopMusic()
-                            MusicManager.playMusic(context, "music/pirate_blaster_scene1.wav")
-                            viewModel.startGame()
-                        },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
+
+                    // Content & Buttons overlaid on top of panel graphic
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth(0.65f)
+                            .padding(top = 115.dp)
                     ) {
-                        Text("🔄 RESTART NEW GAME", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = onBack,
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
-                    ) {
-                        Text("Back to Games", color = Color.White)
+                        Text(
+                            text = "Score: ${uiState.score} / ${uiState.total}   |   🪙 Coins: ${galleryState.coins}",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFFF59E0B),
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(Modifier.height(8.dp))
+
+                        // Restart Button
+                        if (restartBitmap != null) {
+                            Image(
+                                bitmap = restartBitmap,
+                                contentDescription = "Restart New Game",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(54.dp)
+                                    .clickable {
+                                        MusicManager.stopMusic()
+                                        MusicManager.playMusic(context, "music/pirate_blaster_scene1.wav")
+                                        viewModel.startGame()
+                                    },
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            Button(
+                                onClick = {
+                                    MusicManager.stopMusic()
+                                    MusicManager.playMusic(context, "music/pirate_blaster_scene1.wav")
+                                    viewModel.startGame()
+                                },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
+                            ) {
+                                Text("🔄 RESTART NEW GAME", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // Back to Games Button
+                        if (backBitmap != null) {
+                            Image(
+                                bitmap = backBitmap,
+                                contentDescription = "Back to Games",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(54.dp)
+                                    .clickable { onBack() },
+                                contentScale = ContentScale.Fit
+                            )
+                        } else {
+                            OutlinedButton(
+                                onClick = onBack,
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f))
+                            ) {
+                                Text("Back to Games", color = Color.White)
+                            }
+                        }
                     }
                 }
             }
@@ -1010,7 +1135,8 @@ private fun CoinBanner(
 private fun BarrelExplosionOverlay(
     modifier: Modifier = Modifier,
     letter: Char? = null,
-    scale: Float = 1f
+    scale: Float = 1f,
+    onComplete: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var frameIndex by remember { mutableIntStateOf(0) }
@@ -1021,6 +1147,7 @@ private fun BarrelExplosionOverlay(
             frameIndex = i
             delay(frameMs)
         }
+        onComplete()
     }
 
     val formattedFrame = if (frameIndex < 10) "0$frameIndex" else "$frameIndex"
@@ -1079,7 +1206,7 @@ fun CannonAimingView(
     Canvas(modifier = modifier) {
         val bmp = sprite?.bitmap ?: return@Canvas
         val pivot = manager.pivot
-        val s = 1.0f
+        val s = scale // Uses scale parameter
 
         val mountX = size.width / 2f
         val mountY = size.height
@@ -1091,7 +1218,7 @@ fun CannonAimingView(
             drawImage(
                 image = bmp,
                 dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
-                dstSize = IntSize(bmp.width, bmp.height)
+                dstSize = IntSize((bmp.width * s).roundToInt(), (bmp.height * s).roundToInt())
             )
         }
 
@@ -1104,5 +1231,47 @@ fun CannonAimingView(
         } else {
             drawOp()
         }
+    }
+}
+
+@Composable
+private fun CannonballShotOverlay(
+    modifier: Modifier = Modifier,
+    sizeDp: Dp = 28.dp
+) {
+    val context = LocalContext.current
+    val cannonballBitmaps = remember(context) {
+        (0..15).map { i ->
+            val formatted = if (i < 10) "0$i" else "$i"
+            loadAssetImageBitmap(context, "games/pirate_blaster/animations/cannonball/cannonball_$formatted.png")
+        }
+    }
+
+    var frameIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val frameMs = 60L // 16 frames @ 60ms per frame
+        while (true) {
+            frameIndex = (frameIndex + 1) % 16
+            delay(frameMs)
+        }
+    }
+
+    val bmp = cannonballBitmaps.getOrNull(frameIndex)
+    if (bmp != null) {
+        Image(
+            bitmap = bmp,
+            contentDescription = "Animated Cannonball",
+            modifier = modifier.size(sizeDp),
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        Box(
+            modifier = modifier
+                .size(sizeDp)
+                .clip(CircleShape)
+                .background(Color(0xFF1E293B))
+                .border(2.dp, Color(0xFFF59E0B), CircleShape)
+        )
     }
 }

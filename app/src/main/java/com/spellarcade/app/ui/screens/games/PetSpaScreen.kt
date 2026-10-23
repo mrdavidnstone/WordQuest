@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -33,11 +34,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.spellarcade.app.ui.components.*
+import com.spellarcade.app.data.model.AvatarConfig
+import com.spellarcade.app.ui.components.avatar.HeroAnimationState
+import com.spellarcade.app.ui.components.avatar.HeroSprite
+import com.spellarcade.app.ui.screens.profile.character.CharacterLayerType
 import com.spellarcade.app.util.MusicManager
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.delay
+import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,6 +54,61 @@ fun PetSpaScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val petSpaState by viewModel.petSpaState.collectAsState()
+
+    // ===================== ADJUSTABLE SETTINGS =====================
+    var tubVerticalOffset by remember { mutableFloatStateOf(20f) } // Bathtub vertical offset (+ down, - up)
+    var keyboardBottomPadding by remember { mutableFloatStateOf(4f) } // Keyboard bottom padding
+    var keyboardWidthFactor by remember { mutableFloatStateOf(0.45f) } // Keyboard width scale factor (smaller = smaller keyboard)
+    var keyHeightDp by remember { mutableFloatStateOf(30f) } // Key tile height in dp
+    var petVerticalOffset by remember { mutableFloatStateOf(-20f) } // Pet vertical offset (+ down, - up)
+    var heroScale by remember { mutableFloatStateOf(2.6f) } // Hero avatar scale factor (larger = bigger hero)
+    var heroHorizontalOffset by remember { mutableFloatStateOf(-20f) } // Hero horizontal offset from left in dp
+    var heroVerticalOffset by remember { mutableFloatStateOf(-20f) } // Hero vertical offset from bottom in dp
+    // ===============================================================
+
+    @Composable
+    fun PetSpaKeyTile(
+        displayLabel: String,
+        isGuessed: Boolean,
+        isCorrect: Boolean,
+        onClick: () -> Unit,
+        disabled: Boolean,
+        modifier: Modifier = Modifier,
+        isSpecialKey: Boolean = false,
+        isActiveKey: Boolean = false
+    ) {
+        val containerColor = when {
+            isActiveKey -> Color(0xFFEC4899)
+            isCorrect -> Color(0xFF22C55E).copy(alpha = 0.85f)
+            isGuessed -> Color(0xFF334155).copy(alpha = 0.6f)
+            isSpecialKey -> Color(0xFF581C87)
+            else -> Color(0xFF4C1D95)
+        }
+
+        val contentColor = if (isGuessed && !isCorrect && !isActiveKey) Color.White.copy(alpha = 0.3f) else Color.White
+
+        Button(
+            onClick = onClick,
+            enabled = !disabled && !(isGuessed && !isSpecialKey),
+            contentPadding = PaddingValues(0.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = containerColor,
+                contentColor = contentColor,
+                disabledContainerColor = containerColor.copy(alpha = 0.4f),
+                disabledContentColor = contentColor.copy(alpha = 0.4f)
+            ),
+            border = BorderStroke(1.dp, Color(0xFFEC4899).copy(alpha = 0.7f)),
+            modifier = modifier.height(keyHeightDp.dp)
+        ) {
+            Text(
+                text = displayLabel,
+                fontWeight = FontWeight.Bold,
+                fontSize = if (isSpecialKey) 13.sp else 15.sp,
+                color = contentColor
+            )
+        }
+    }
 
     LaunchedEffect(Unit) {
         MusicManager.playMusic(context, "music/pet_spa/gem-waltz.wav")
@@ -246,24 +307,12 @@ fun PetSpaScreen(
                 border = BorderStroke(2.dp, Color(0xFFEC4899))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("🐾", fontSize = 22.sp)
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = petSpaState.petName.uppercase(),
-                            fontWeight = FontWeight.Black,
-                            fontSize = 14.sp,
-                            color = Color(0xFF38BDF8)
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            petSpaState.maskedWord.forEach { char ->
-                                PetSpaBlankTile(char = char)
-                            }
-                        }
+                    petSpaState.maskedWord.forEach { char ->
+                        PetSpaBlankTile(char = char)
                     }
                 }
             }
@@ -304,37 +353,83 @@ fun PetSpaScreen(
                 }
             }
 
-            // Center Pet Visual
+            // Left Side Hero Character (Selected Avatar with T-shirt & special Pet Spa bottoms, no shoes)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .offset(x = heroHorizontalOffset.dp, y = (-heroVerticalOffset).dp)
+                    .zIndex(2f)
+            ) {
+                val heroConfig = remember(uiState.avatar) { AvatarConfig.fromAvatar(uiState.avatar) }
+                val spaTopColor = if (heroConfig.topColor.isBlank()) "blue" else heroConfig.topColor
+                val spaBottomColor = if (heroConfig.bottomColor.isBlank()) "blue" else heroConfig.bottomColor
+                val spaSpecialPath = "sprites/special/pet_spa/pet_spa_$spaBottomColor.png"
+
+                Box(modifier = Modifier.size((110f * heroScale).dp, (150f * heroScale).dp)) {
+                    HeroSprite(
+                        config = heroConfig.copy(top = "tshirt", topColor = spaTopColor, bottom = "none"),
+                        modifier = Modifier.fillMaxSize(),
+                        animationState = HeroAnimationState.IDLE,
+                        sway = false,
+                        breath = false,
+                        layerVisibility = mapOf(
+                            CharacterLayerType.SHOES to false,
+                            CharacterLayerType.BOTTOM to false
+                        )
+                    )
+                    val spaBitmap = remember(context, spaSpecialPath) { loadAssetImageBitmap(context, spaSpecialPath) }
+                    if (spaBitmap != null) {
+                        Image(
+                            bitmap = spaBitmap,
+                            contentDescription = "Pet Spa Clothes Overlay",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+            }
+
+            // Center Pet Visual inside the Bathtub
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .offset(y = tubVerticalOffset.dp)
                     .zIndex(1f),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                Box(
+                    modifier = Modifier.size(260.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Surface(
-                        modifier = Modifier.size(160.dp),
-                        shape = CircleShape,
-                        color = Color(0xFF1E293B).copy(alpha = 0.85f),
-                        border = BorderStroke(3.dp, Color(0xFFEC4899))
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(petSpaState.petEmoji, fontSize = 72.sp)
-                        }
+                    val tubBitmap = remember(context) { loadAssetImageBitmap(context, "games/pet_spa/pet_tub.png") }
+                    if (tubBitmap != null) {
+                        Image(
+                            bitmap = tubBitmap,
+                            contentDescription = "Pet Bathtub",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF0F172A).copy(alpha = 0.85f)
-                    ) {
-                        Text(
-                            text = if (petSpaState.phase == PetSpaPhase.GROOMING) "✨ Spell solved! Tap tools to groom!" else petSpaState.petName,
-                            fontWeight = FontWeight.Bold,
-                            color = if (petSpaState.phase == PetSpaPhase.GROOMING) Color(0xFF22C55E) else Color.White,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+
+                    PuppySprite(
+                        modifier = Modifier
+                            .size(150.dp)
+                            .offset(y = (-20).dp + petVerticalOffset.dp)
+                    )
+
+                    TubBubblesOverlay(
+                        modifier = Modifier
+                            .size(180.dp)
+                            .offset(y = (-10).dp)
+                    )
+
+                    val tubOverlayBitmap = remember(context) { loadAssetImageBitmap(context, "games/pet_spa/pet_tub_overlay.png") }
+                    if (tubOverlayBitmap != null) {
+                        Image(
+                            bitmap = tubOverlayBitmap,
+                            contentDescription = "Pet Bathtub Front Overlay",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
                         )
                     }
                 }
@@ -390,9 +485,9 @@ fun PetSpaScreen(
 
                 Surface(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 24.dp, bottom = 12.dp)
-                        .width(460.dp)
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = keyboardBottomPadding.dp)
+                        .fillMaxWidth(keyboardWidthFactor)
                         .zIndex(10f)
                         .clip(RoundedCornerShape(20.dp)),
                     color = Color(0xFF1E1B4B).copy(alpha = 0.96f),
@@ -562,50 +657,6 @@ fun PetSpaScreen(
 }
 
 @Composable
-private fun PetSpaKeyTile(
-    displayLabel: String,
-    isGuessed: Boolean,
-    isCorrect: Boolean,
-    onClick: () -> Unit,
-    disabled: Boolean,
-    modifier: Modifier = Modifier,
-    isSpecialKey: Boolean = false,
-    isActiveKey: Boolean = false
-) {
-    val containerColor = when {
-        isActiveKey -> Color(0xFFEC4899)
-        isCorrect -> Color(0xFF22C55E).copy(alpha = 0.85f)
-        isGuessed -> Color(0xFF334155).copy(alpha = 0.6f)
-        isSpecialKey -> Color(0xFF581C87)
-        else -> Color(0xFF4C1D95)
-    }
-
-    val contentColor = if (isGuessed && !isCorrect && !isActiveKey) Color.White.copy(alpha = 0.3f) else Color.White
-
-    Button(
-        onClick = onClick,
-        enabled = !disabled && !(isGuessed && !isSpecialKey),
-        contentPadding = PaddingValues(0.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            disabledContainerColor = containerColor.copy(alpha = 0.4f),
-            disabledContentColor = contentColor.copy(alpha = 0.4f)
-        ),
-        border = BorderStroke(1.dp, Color(0xFFEC4899).copy(alpha = 0.7f)),
-        modifier = modifier.height(36.dp)
-    ) {
-        Text(
-            text = displayLabel,
-            fontWeight = FontWeight.Bold,
-            fontSize = if (isSpecialKey) 14.sp else 16.sp,
-            color = contentColor
-        )
-    }
-}
-
-@Composable
 private fun PetSpaBlankTile(char: Char) {
     Surface(
         modifier = Modifier.size(width = 36.dp, height = 44.dp),
@@ -716,5 +767,132 @@ private fun loadAssetImageBitmap(context: Context, assetName: String): ImageBitm
         }
     } catch (_: Exception) {
         null
+    }
+}
+
+@Composable
+private fun PuppySprite(
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val puppyBitmaps = remember(context) {
+        (1..24).map { i ->
+            val formatted = if (i < 10) "0$i" else "$i"
+            loadAssetImageBitmap(context, "games/pet_spa/animations/puppy/dirty_puppy/frames_512/puppy_idle_$formatted.png")
+        }
+    }
+
+    var frameIndex by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val frameMs = 60L // 24 frames @ 60ms per frame = ~1.44s loop
+        while (true) {
+            frameIndex = (frameIndex + 1) % 24
+            delay(frameMs)
+        }
+    }
+
+    val bmp = puppyBitmaps.getOrNull(frameIndex)
+    if (bmp != null) {
+        Image(
+            bitmap = bmp,
+            contentDescription = "Animated Dirty Puppy",
+            modifier = modifier,
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+data class BubbleParticle(
+    val id: Long,
+    val startX: Float,
+    val startY: Float,
+    val size: Float,
+    val riseDistance: Float,
+    val durationMs: Long,
+    val swayPx: Float,
+    val phase: Float,
+    val startTime: Long
+)
+
+@Composable
+private fun TubBubblesOverlay(
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val bubbleBitmaps = remember(context) {
+        (1..8).map { i ->
+            val formatted = if (i < 10) "0$i" else "$i"
+            loadAssetImageBitmap(context, "games/pet_spa/animations/tub_bubbles/frames_256/bubble_float_$formatted.png")
+        }
+    }
+
+    var bubbles by remember { mutableStateOf(listOf<BubbleParticle>()) }
+    var currentTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(Unit) {
+        val startTime = System.currentTimeMillis()
+        while (true) {
+            currentTime = System.currentTimeMillis()
+            val elapsed = currentTime - startTime
+
+            if (bubbles.size < 8 && (bubbles.isEmpty() || elapsed - bubbles.last().startTime > (200L..500L).random())) {
+                val newBubble = BubbleParticle(
+                    id = currentTime + (0..999).random(),
+                    startX = (-0.80f + (0..160).random() / 100f), // spans full width from left to right across tub
+                    startY = (0.05f + (0..25).random() / 100f),
+                    size = (18 + (0..32).random()).toFloat(),
+                    riseDistance = (35 + (0..45).random()).toFloat(),
+                    durationMs = (2400L..3800L).random(),
+                    swayPx = (6 + (0..12).random()).toFloat(),
+                    phase = (0..628).random() / 100f,
+                    startTime = currentTime
+                )
+                bubbles = (bubbles + newBubble)
+            }
+
+            bubbles = bubbles.filter { bubble ->
+                (currentTime - bubble.startTime) < bubble.durationMs
+            }
+
+            delay(25L)
+        }
+    }
+
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        val globalElapsed = currentTime
+        bubbles.forEach { bubble ->
+            val age = (globalElapsed - bubble.startTime).toFloat()
+            val t = (age / bubble.durationMs).coerceIn(0f, 1f)
+            val eased = 1f - (1f - t) * (1f - t)
+            val sway = bubble.swayPx * sin(bubble.phase + t * 4 * Math.PI.toFloat()) * (0.4f + t)
+            val grow = (t / 0.15f).coerceIn(0f, 1f)
+            val alpha = if (t > 0.85f) (1.0f - (t - 0.85f) / 0.15f).coerceIn(0f, 1f) else grow.coerceAtMost(1f)
+
+            val frameIndex = ((age / 90) % 8).toInt()
+            val bmp = bubbleBitmaps.getOrNull(frameIndex)
+
+            if (bmp != null) {
+                Box(
+                    modifier = Modifier
+                        .size(bubble.size.dp)
+                        .graphicsLayer {
+                            translationX = bubble.startX * 130f + sway
+                            translationY = 25f - bubble.startY * 40f - bubble.riseDistance * eased
+                            scaleX = 0.3f + 0.7f * grow
+                            scaleY = scaleX
+                            this.alpha = alpha
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = bmp,
+                        contentDescription = "Floating Bubble",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
+        }
     }
 }
