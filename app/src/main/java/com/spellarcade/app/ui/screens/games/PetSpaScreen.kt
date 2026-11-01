@@ -70,7 +70,7 @@ fun PetSpaScreen(
     var tubVerticalOffset by remember { mutableFloatStateOf(20f) } // Bathtub vertical offset (+ down, - up)
     var keyboardBottomPadding by remember { mutableFloatStateOf(4f) } // Keyboard bottom padding
     var keyboardWidthFactor by remember { mutableFloatStateOf(0.45f) } // Keyboard width scale factor (smaller = smaller keyboard)
-    var keyHeightDp by remember { mutableFloatStateOf(30f) } // Key tile height in dp
+    var keyHeightDp by remember { mutableFloatStateOf(35f) } // Key tile height in dp
     var petVerticalOffset by remember { mutableFloatStateOf(-20f) } // Pet vertical offset (+ down, - up)
     var heroScale by remember { mutableFloatStateOf(2.6f) } // Hero avatar scale factor (larger = bigger hero)
     var heroHorizontalOffset by remember { mutableFloatStateOf(-20f) } // Hero horizontal offset from left in dp
@@ -825,9 +825,9 @@ private const val VISIBLE_FRACTION = 0.52f // visible bubble fills ~52% of the 2
 
 /** Tunable settings. Fractions are relative to the tub image width unless noted. */
 data class BubbleConfig(
-    val minSpawnIntervalMs: Long = 1200L,
-    val maxSpawnIntervalMs: Long = 2600L,
-    val maxBubbles: Int = 5,
+    val minSpawnIntervalMs: Long = 400L,
+    val maxSpawnIntervalMs: Long = 1000L,
+    val maxBubbles: Int = 10,
     val minDiameterFrac: Float = 0.035f,
     val maxDiameterFrac: Float = 0.07f,
     val minRiseFrac: Float = 0.15f,
