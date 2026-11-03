@@ -38,6 +38,9 @@ kotlin {
                 implementation(compose.components.uiToolingPreview)
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
                 implementation("org.jetbrains.compose.material:material-icons-extended:1.7.0")
+                implementation("io.insert-koin:koin-core:4.0.0")
+                implementation("io.insert-koin:koin-compose:4.0.0")
+                implementation("io.insert-koin:koin-compose-viewmodel:4.0.0")
             }
         }
         val androidMain by getting {

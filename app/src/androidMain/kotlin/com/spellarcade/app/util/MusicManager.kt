@@ -4,13 +4,13 @@ import android.media.MediaPlayer
 import android.util.Log
 import com.spellarcade.app.SpellArcadeApp
 
-actual object MusicManager {
+object MusicManager {
     private const val TAG = "MusicManager"
     private var mediaPlayer: MediaPlayer? = null
     private var currentAssetPath: String? = null
     private var isPaused = false
 
-    actual fun playMusic(assetPath: String) {
+    fun playMusic(assetPath: String) {
         val appContext = SpellArcadeApp.instance?.applicationContext ?: return
 
         if (currentAssetPath == assetPath && mediaPlayer != null && mediaPlayer?.isPlaying == true) {
@@ -46,7 +46,7 @@ actual object MusicManager {
         }
     }
 
-    actual fun pauseMusic() {
+    fun pauseMusic() {
         if (mediaPlayer != null && mediaPlayer?.isPlaying == true) {
             try {
                 mediaPlayer?.pause()
@@ -57,7 +57,7 @@ actual object MusicManager {
         }
     }
 
-    actual fun resumeMusic() {
+    fun resumeMusic() {
         if (mediaPlayer != null && isPaused) {
             try {
                 mediaPlayer?.start()
@@ -68,7 +68,7 @@ actual object MusicManager {
         }
     }
 
-    actual fun stopMusic() {
+    fun stopMusic() {
         try {
             mediaPlayer?.stop()
             mediaPlayer?.release()
