@@ -1,4 +1,4 @@
-﻿import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -64,8 +64,20 @@ kotlin {
         val iosMain by creating {
             dependsOn(commonMain)
         }
-    }
-}
+
+        val iosArm64Main by getting {
+            dependsOn(iosMain)
+        }
+
+        val iosX64Main by getting {
+            dependsOn(iosMain)
+        }
+
+        val iosSimulatorArm64Main by getting {
+            dependsOn(iosMain)
+        }
+            }
+        }
 
 android {
     namespace = "com.spellarcade.app"
