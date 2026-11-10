@@ -3,9 +3,10 @@
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.util.Log
+import com.spellarcade.app.SpellArcadeApp
 import java.util.Locale
 
-class TtsHelper(context: Context) : TextToSpeech.OnInitListener {
+actual class TtsHelper actual constructor() : TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var isReady = false
     private var pendingText: String? = null
@@ -13,9 +14,16 @@ class TtsHelper(context: Context) : TextToSpeech.OnInitListener {
 
     private val TAG = "TtsHelper"
 
+    constructor(context: Context) : this()
+
     init {
-        Log.d(TAG, "Initializing TTS...")
-        tts = TextToSpeech(context.applicationContext, this)
+        val appContext = SpellArcadeApp.instance?.applicationContext
+        if (appContext != null) {
+            Log.d(TAG, "Initializing TTS...")
+            tts = TextToSpeech(appContext, this)
+        } else {
+            Log.e(TAG, "AppContext unavailable for TTS")
+        }
     }
 
     override fun onInit(status: Int) {
@@ -47,7 +55,7 @@ class TtsHelper(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
-    fun speak(text: String, slow: Boolean = false) {
+    actual fun speak(text: String, slow: Boolean) {
         if (!isReady) {
             Log.d(TAG, "Speak called but not ready. Queuing: $text")
             pendingText = text
@@ -63,7 +71,7 @@ class TtsHelper(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
-    fun shutdown() {
+    actual fun shutdown() {
         Log.d(TAG, "Shutting down TTS")
         tts?.stop()
         tts?.shutdown()
