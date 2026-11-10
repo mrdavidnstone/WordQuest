@@ -1,20 +1,49 @@
+rootProject.name = "SpellArcade"
+
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
 pluginManagement {
     repositories {
-        google()
+        google {
+            mavenContent {
+                includeGroupAndSubgroups("androidx")
+                includeGroupAndSubgroups("com.android")
+                includeGroupAndSubgroups("com.google")
+            }
+        }
         mavenCentral()
         gradlePluginPortal()
     }
 }
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
-}
+
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        google()
+        google {
+            mavenContent {
+                includeGroupAndSubgroups("androidx")
+                includeGroupAndSubgroups("com.android")
+                includeGroupAndSubgroups("com.google")
+            }
+        }
         mavenCentral()
     }
 }
 
-rootProject.name = "SpellArcade"
-include(":app")
+// Core modules
+include(":core:common")
+include(":core:domain")
+include(":core:data")
+include(":core:game-engine")
+include(":core:design-system")
+
+// Feature modules
+include(":feature:home")
+include(":feature:games")
+include(":feature:vocabulary")
+include(":feature:parent-portal")
+include(":feature:settings")
+include(":feature:player-profile")
+
+// Application modules
+include(":composeApp")
+// iosApp is an Xcode project; no Gradle include needed

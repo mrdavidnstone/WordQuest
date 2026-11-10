@@ -1,0 +1,8 @@
+{
+  "buildPath": ":",
+  "projectPath": ":core:common",
+  "moduleId": {
+    "groupId": "SpellArcade.core",
+    "moduleId": "common"
+  }
+}

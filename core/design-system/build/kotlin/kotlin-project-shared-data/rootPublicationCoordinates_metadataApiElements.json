@@ -1,0 +1,8 @@
+{
+  "buildPath": ":",
+  "projectPath": ":core:design-system",
+  "moduleId": {
+    "groupId": "SpellArcade.core",
+    "moduleId": "design-system"
+  }
+}

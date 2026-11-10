@@ -1,0 +1,1 @@
+C:\Users\demol\.konan\kotlin-native-prebuilt-windows-x86_64-2.4.21\klib\commonized\2.4.21

@@ -1,0 +1,118 @@
+{
+  "projectStructure": {
+    "formatVersion": "0.3.3",
+    "isPublishedAsRoot": "true",
+    "variants": [
+      {
+        "name": "androidApiElements",
+        "sourceSet": [
+          "commonMain"
+        ]
+      },
+      {
+        "name": "androidRuntimeElements",
+        "sourceSet": [
+          "commonMain"
+        ]
+      },
+      {
+        "name": "iosArm64ApiElements",
+        "sourceSet": [
+          "iosMain",
+          "appleMain",
+          "nativeMain",
+          "commonMain"
+        ]
+      },
+      {
+        "name": "iosSimulatorArm64ApiElements",
+        "sourceSet": [
+          "iosMain",
+          "appleMain",
+          "nativeMain",
+          "commonMain"
+        ]
+      }
+    ],
+    "sourceSets": [
+      {
+        "name": "appleMain",
+        "dependsOn": [
+          "nativeMain"
+        ],
+        "moduleDependency": [
+          "app.cash.sqldelight:runtime",
+          "SpellArcade.core:common",
+          "SpellArcade.core:domain",
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+          "org.jetbrains.kotlinx:kotlinx-serialization-json",
+          "app.cash.sqldelight:coroutines-extensions",
+          "com.russhwolf:multiplatform-settings",
+          "com.russhwolf:multiplatform-settings-coroutines",
+          "co.touchlab:kermit"
+        ],
+        "sourceSetCInteropMetadataDirectory": "appleMain-cinterop",
+        "binaryLayout": "klib",
+        "hostSpecific": "true"
+      },
+      {
+        "name": "commonMain",
+        "dependsOn": [],
+        "moduleDependency": [
+          "app.cash.sqldelight:runtime",
+          "org.jetbrains.kotlin:kotlin-stdlib",
+          "SpellArcade.core:common",
+          "SpellArcade.core:domain",
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+          "org.jetbrains.kotlinx:kotlinx-serialization-json",
+          "app.cash.sqldelight:coroutines-extensions",
+          "com.russhwolf:multiplatform-settings",
+          "com.russhwolf:multiplatform-settings-coroutines",
+          "co.touchlab:kermit"
+        ],
+        "binaryLayout": "klib"
+      },
+      {
+        "name": "iosMain",
+        "dependsOn": [
+          "appleMain"
+        ],
+        "moduleDependency": [
+          "app.cash.sqldelight:runtime",
+          "SpellArcade.core:common",
+          "SpellArcade.core:domain",
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+          "org.jetbrains.kotlinx:kotlinx-serialization-json",
+          "app.cash.sqldelight:coroutines-extensions",
+          "com.russhwolf:multiplatform-settings",
+          "com.russhwolf:multiplatform-settings-coroutines",
+          "co.touchlab:kermit",
+          "app.cash.sqldelight:native-driver"
+        ],
+        "sourceSetCInteropMetadataDirectory": "iosMain-cinterop",
+        "binaryLayout": "klib",
+        "hostSpecific": "true"
+      },
+      {
+        "name": "nativeMain",
+        "dependsOn": [
+          "commonMain"
+        ],
+        "moduleDependency": [
+          "app.cash.sqldelight:runtime",
+          "SpellArcade.core:common",
+          "SpellArcade.core:domain",
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+          "org.jetbrains.kotlinx:kotlinx-serialization-json",
+          "app.cash.sqldelight:coroutines-extensions",
+          "com.russhwolf:multiplatform-settings",
+          "com.russhwolf:multiplatform-settings-coroutines",
+          "co.touchlab:kermit"
+        ],
+        "sourceSetCInteropMetadataDirectory": "nativeMain-cinterop",
+        "binaryLayout": "klib",
+        "hostSpecific": "true"
+      }
+    ]
+  }
+}

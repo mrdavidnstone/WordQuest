@@ -1,0 +1,8 @@
+{
+  "buildPath": ":",
+  "projectPath": ":core:game-engine",
+  "moduleId": {
+    "groupId": "SpellArcade.core",
+    "moduleId": "game-engine"
+  }
+}

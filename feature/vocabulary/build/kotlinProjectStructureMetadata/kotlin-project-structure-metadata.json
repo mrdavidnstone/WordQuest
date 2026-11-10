@@ -1,0 +1,137 @@
+{
+  "projectStructure": {
+    "formatVersion": "0.3.3",
+    "isPublishedAsRoot": "true",
+    "variants": [
+      {
+        "name": "androidApiElements",
+        "sourceSet": [
+          "commonMain"
+        ]
+      },
+      {
+        "name": "androidRuntimeElements",
+        "sourceSet": [
+          "commonMain"
+        ]
+      },
+      {
+        "name": "iosArm64ApiElements",
+        "sourceSet": [
+          "iosMain",
+          "appleMain",
+          "nativeMain",
+          "commonMain"
+        ]
+      },
+      {
+        "name": "iosSimulatorArm64ApiElements",
+        "sourceSet": [
+          "iosMain",
+          "appleMain",
+          "nativeMain",
+          "commonMain"
+        ]
+      }
+    ],
+    "sourceSets": [
+      {
+        "name": "appleMain",
+        "dependsOn": [
+          "nativeMain"
+        ],
+        "moduleDependency": [
+          "org.jetbrains.compose.runtime:runtime",
+          "org.jetbrains.compose.foundation:foundation",
+          "org.jetbrains.compose.material3:material3",
+          "org.jetbrains.compose.ui:ui",
+          "SpellArcade.core:common",
+          "SpellArcade.core:domain",
+          "SpellArcade.core:design-system",
+          "SpellArcade.core:game-engine",
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+          "io.insert-koin:koin-core",
+          "io.insert-koin:koin-compose",
+          "io.insert-koin:koin-compose-viewmodel",
+          "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose",
+          "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose"
+        ],
+        "sourceSetCInteropMetadataDirectory": "appleMain-cinterop",
+        "binaryLayout": "klib",
+        "hostSpecific": "true"
+      },
+      {
+        "name": "commonMain",
+        "dependsOn": [],
+        "moduleDependency": [
+          "org.jetbrains.kotlin:kotlin-stdlib",
+          "org.jetbrains.compose.runtime:runtime",
+          "org.jetbrains.compose.foundation:foundation",
+          "org.jetbrains.compose.material3:material3",
+          "org.jetbrains.compose.ui:ui",
+          "SpellArcade.core:common",
+          "SpellArcade.core:domain",
+          "SpellArcade.core:design-system",
+          "SpellArcade.core:game-engine",
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+          "io.insert-koin:koin-core",
+          "io.insert-koin:koin-compose",
+          "io.insert-koin:koin-compose-viewmodel",
+          "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose",
+          "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose"
+        ],
+        "binaryLayout": "klib"
+      },
+      {
+        "name": "iosMain",
+        "dependsOn": [
+          "appleMain"
+        ],
+        "moduleDependency": [
+          "org.jetbrains.compose.runtime:runtime",
+          "org.jetbrains.compose.foundation:foundation",
+          "org.jetbrains.compose.material3:material3",
+          "org.jetbrains.compose.ui:ui",
+          "SpellArcade.core:common",
+          "SpellArcade.core:domain",
+          "SpellArcade.core:design-system",
+          "SpellArcade.core:game-engine",
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+          "io.insert-koin:koin-core",
+          "io.insert-koin:koin-compose",
+          "io.insert-koin:koin-compose-viewmodel",
+          "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose",
+          "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose"
+        ],
+        "sourceSetCInteropMetadataDirectory": "iosMain-cinterop",
+        "binaryLayout": "klib",
+        "hostSpecific": "true"
+      },
+      {
+        "name": "nativeMain",
+        "dependsOn": [
+          "commonMain"
+        ],
+        "moduleDependency": [
+          "org.jetbrains.compose.runtime:runtime",
+          "org.jetbrains.compose.foundation:foundation",
+          "org.jetbrains.compose.material3:material3",
+          "org.jetbrains.compose.ui:ui",
+          "SpellArcade.core:common",
+          "SpellArcade.core:domain",
+          "SpellArcade.core:design-system",
+          "SpellArcade.core:game-engine",
+          "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+          "io.insert-koin:koin-core",
+          "io.insert-koin:koin-compose",
+          "io.insert-koin:koin-compose-viewmodel",
+          "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose",
+          "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose"
+        ],
+        "sourceSetCInteropMetadataDirectory": "nativeMain-cinterop",
+        "binaryLayout": "klib",
+        "hostSpecific": "true"
+      }
+    ]
+  }
+}

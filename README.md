@@ -1,83 +1,73 @@
-﻿# Spelling Games — Android App
+# SpellArcade
 
-A fun, offline-first Android spelling practice app for kids.  
-One shared spelling-list system powers multiple different games.
+Cross-platform educational arcade game for children (ages 6–14) built with **Kotlin Multiplatform** and **Compose Multiplatform**.
 
-## Features (MVP)
+## Targets
 
-- **Shared Spelling Lists** — create, edit, paste multiple words, duplicate, set active list
-- **Active List** is remembered and used by every game automatically
-- **Progress & Mastery** tracking per word (New → Learning → Practicing → Mastered)
-- **Parent Area** protected by a simple 4-digit PIN
-- **Games included**:
-  1. **Spell It** — see/hear the word and type it
-  2. **Missing Letters** — fill in the blank
-  3. **Scrambled Word** — unscramble letters
-  4. **Word Builder** — tap letters in order
-  5. **Listen & Spell** — pure audio (Text-to-Speech)
-  6. **Which One Is Correct?** — multiple choice with realistic distractors
-  7. **Word Hunt** — find the correctly spelled word
-  8. **Spelling Challenge** — placeholder ready for expansion
-- Fully offline (Room + DataStore)
-- Child-friendly colorful Compose UI
-- Portrait orientation, empty-state handling, encouraging feedback
+| Platform | Minimum Version |
+|----------|-----------------|
+| Android  | 10 (API 29)     |
+| iOS      | 16              |
 
-## How to Build the APK
-
-1. Open the project in **Android Studio** (Ladybug / 2024.2+ recommended).
-2. Let Gradle sync (it will download dependencies).
-3. Connect a phone or start an emulator (API 26+).
-4. Click **Run** or build a release APK:
-
-```bash
-./gradlew assembleRelease
-```
-
-The APK will be at:
-`app/build/outputs/apk/release/app-release-unsigned.apk`
-
-(Sign it with your keystore for distribution.)
-
-## First-time use
-
-1. Open the app → go to **Lists** (or Parent Area).
-2. Create a list (e.g. “Week 1”) and paste words (one per line or comma-separated).
-3. The new list becomes the **Active** list.
-4. Go to **Games** and start playing any game — they all use the active list.
-5. Progress is saved automatically.
-
-## Parent PIN
-
-- First time: open Parent Area → “Set a new PIN”.
-- Later: enter the 4-digit PIN to manage lists, add/delete words, or reset progress.
-
-## Architecture
-
-- **Kotlin + Jetpack Compose + Material 3**
-- **MVVM** + Hilt
-- **Room** for lists, words, progress
-- **DataStore** for PIN / points
-- Shared `SpellingRepository` — games never own their own lists
-- Easy to add new games later
-
-## Project structure
+## Project Structure
 
 ```
-app/src/main/java/com/SpellArcade/app/
-├── data/          # Room entities, DAOs, repositories
-├── di/            # Hilt modules
-├── domain/        # (ready for use-cases)
-├── ui/
-│   ├── components/
-│   ├── navigation/
-│   ├── screens/
-│   │   ├── home/
-│   │   ├── lists/
-│   │   ├── games/     # all 8 games
-│   │   ├── progress/
-│   │   └── parent/
-│   └── theme/
-└── util/          # TTS helper
+SpellArcade/
+├── composeApp/                 # Main Compose Multiplatform application
+├── core/
+│   ├── common/                 # Shared utilities
+│   ├── domain/                 # Pure domain models & use-case interfaces
+│   ├── data/                   # Repositories, SQLDelight, Settings
+│   ├── game-engine/            # Shared game state machines & scoring
+│   └── design-system/          # Theme, typography, reusable components
+├── feature/
+│   ├── home/
+│   ├── games/
+│   ├── vocabulary/
+│   ├── parent-portal/
+│   ├── settings/
+│   └── player-profile/
+├── iosApp/                     # Xcode project (generated / maintained separately)
+└── gradle/libs.versions.toml   # Version catalog
 ```
 
-Enjoy helping your son practice spelling through games!
+## Tech Stack
+
+- Kotlin 2.4.21
+- Compose Multiplatform 1.12.2
+- Koin (DI)
+- SQLDelight (persistence)
+- Kotlin Coroutines + StateFlow
+- Multiplatform Settings
+
+## Getting Started
+
+### Prerequisites
+
+- Android Studio (latest stable / Otter or newer recommended)
+- Xcode 16+ (for iOS)
+- JDK 17+
+
+### Open & Build (Android)
+
+1. Open the `SpellArcade` folder in Android Studio.
+2. Let Gradle sync.
+3. Select the `composeApp` run configuration.
+4. Run on an emulator or device (API 29+).
+
+### iOS
+
+1. After a successful Gradle sync, the iOS framework is produced under `composeApp/build/bin/ios*/`.
+2. Open or create the Xcode project in `iosApp/`.
+3. Link the generated `ComposeApp.framework`.
+4. Build & run on Simulator (iOS 16+) or device.
+
+## Development Phases
+
+See the master development prompt for the full phased plan.
+
+**Current status:** Phase 1 — Project skeleton & version catalog complete.
+
+## License
+
+Proprietary — All rights reserved.
